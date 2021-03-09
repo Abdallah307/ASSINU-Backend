@@ -11,6 +11,8 @@ const postSchema = new Schema({
     },
     ownerId: {
         type: Schema.Types.ObjectId,
+        ref:'Student'
+       
     },
     likes: {
         types: Schema.Types.Array
@@ -19,14 +21,12 @@ const postSchema = new Schema({
         {
             content: Schema.Types.String,
             ownerId: Schema.Types.ObjectId,
-            createdAt: new Date()
+            createdAt: Schema.Types.Date
         }
     ],
+    
 }, {
-    timestamps:{
-        createdAt,
-        updatedAt
-    }
+    timestamps:true
 })
 
 module.exports = mongoose.model('Post', postSchema)
