@@ -20,8 +20,11 @@ const postSchema = new Schema({
     comments: [
         {
             content: Schema.Types.String,
-            ownerId: Schema.Types.ObjectId,
-            createdAt: Schema.Types.Date
+            ownerId: {
+                type: Schema.Types.ObjectId,
+                ref:"Student"
+            },
+            createdAt: Schema.Types.Date,
         }
     ],
     

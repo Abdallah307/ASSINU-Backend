@@ -67,14 +67,7 @@ exports.signIn = async (req, res, next) => {
     const token = createToken(student)
     student.token = token 
     await student.save()
-    return res.status(200).json({
-        token,
-        userId: student._id.toString(),
-        email:student.email,
-        imageUrl:student.imageUrl,
-        name: student.name,
-        bio: student.bio,
-    })
+    return res.status(200).json(student)
     
 }
 

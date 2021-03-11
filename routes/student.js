@@ -5,6 +5,12 @@ const Post = require('../models/post')
 const Student = require('../models/student')
 const isAuth = require('../middleware/is-auth')
 const ObjectId = require('mongodb').ObjectId
+const io = require('../socket')
+
+
+
+
+
 router.get('/info',isAuth, studentController.getStudentInfo)
 router.get('/:studentId', async (req, res, next) => {
     const studentId = req.params.studentId
@@ -34,6 +40,11 @@ router.post('/createpost', async (req, res, next) => {
 
     await post.save()
 
+    io.getIO().emit('posts', {
+        action: 'createdPost',
+        post:post
+    })
+
     res.status(201).json({
         message:"Created Post Successfully",
         post:post,
@@ -43,7 +54,6 @@ router.post('/createpost', async (req, res, next) => {
 
 router.get('/group/posts/:groupId', async (req, res, next) => {
     const groupId = req.params.groupId
-
     const posts = await Post.find({groupId: groupId})
 
     if  (!posts) {
@@ -55,6 +65,43 @@ router.get('/group/posts/:groupId', async (req, res, next) => {
     res.status(200).json({
         message:"fetched posts successfully",
         posts:posts 
+    })
+})
+
+router.put('/group/posts/comment/:postId', async (req, res, next) => {
+    const postId = req.params.postId
+    const comment = req.body.comment
+
+    const post = await Post.findById(postId)
+
+    if (!post) {
+        return res.status(404).json({
+            message:"post not found"
+        })
+    }
+
+     
+    post.comments = [...post.comments, comment]
+    await post.save()
+
+    return res.status(201).json({
+        message:"Added comment successfully",
+    })
+    
+})
+
+router.get('/group/posts/comments/:postId', async (req, res, next) => {
+    const postId = req.params.postId
+    const post = await Post.findById(postId).populate('comments.ownerId')
+    
+    if (!post) {
+        return res.status(404).json({
+            message:"post not found"
+        })
+    }
+ 
+    return res.status(200).json({
+        comments:post.comments
     })
 })
 
