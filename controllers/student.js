@@ -1,158 +1,421 @@
 const Student = require('../models/student');
 const Post = require('../models/post')
 const GroupMessage = require('../models/GroupMessage')
+const Question = require('../models/Question')
 const ObjectId = require('mongodb').ObjectId
 const io = require('../socket')
+const errorCreator = require('../errorCreator')
 
 
 exports.getStudentInfo = async (req, res, next) => {
-    const student = await Student.findById(req.userId)
+
+    try {
+        const student = await Student.findById(req.userId)
     
-    if (!student) {
-        return res.status(401).json({
-            message: "student not found in the database"
+        if (!student) {
+            return res.status(404).json({
+                message: "student not found"
+            })
+        }
+    
+        return res.status(200).json({
+            name: student.name,
+            imageUrl:student.imageUrl,
+            bio:student.bio 
         })
     }
-
-    return res.status(200).json({
-        name: student.name,
-        imageUrl:student.imageUrl,
-        bio:student.bio 
-    })
+    catch (err) {
+        const error = errorCreator("Error occured in the server", 500)
+        return next(error)
+    }
+    
 }
 
 exports.getImageAndName = async (req, res, next) => {
-    const studentId = req.params.studentId
-    const student = await Student.findById(ObjectId(studentId))
+
+    try {
+        const studentId = req.params.studentId
+        const student = await Student.findById(ObjectId(studentId))
+        
+        if (!student) {
+            return res.status(404).json({
+                message:"student not found"
+            })
+        }
     
-    if (!student) {
-        return res.status(404).json({
-            message:"student not found"
+        return res.status(200).json({
+            name: student.name,
+            imageUrl: student.imageUrl,
         })
     }
-
-    return res.status(200).json({
-        name: student.name,
-        imageUrl: student.imageUrl,
-    })
+    catch(err) {
+        const error = errorCreator('Error occured in the server', 500)
+        return next (error)
+    }
+    
 }
 
 
 exports.createPost = async (req, res, next) => {
-    const groupId = req.body.groupId
-    const content = req.body.content 
-    const ownerId = req.body.ownerId
+    try {
+        const groupId = req.body.groupId
+        const content = req.body.content 
+        const ownerId = req.body.ownerId
+        console.log(groupId, "content: "+content, ownerId)
+        const post = new Post({
+            content:content,
+            groupId: groupId,
+            ownerId: ownerId,
+        })
     
-    const post = new Post({
-        content:content,
-        groupId: groupId,
-        ownerId: ownerId,
-    })
+        await post.save()
+    
+        res.status(201).json({
+            message:"Created Post Successfully",
+            post:post,
+        })
+    }
+    catch(err) {
+        const error = errorCreator(err.message, 500)
+        return next (error)
+    }
 
-    await post.save()
-
-    io.getIO().emit('posts', {
-        action: 'createdPost',
-        post:post
-    })
-
-    res.status(201).json({
-        message:"Created Post Successfully",
-        post:post,
-    })
     
 }
 
 exports.getGroupPosts = async (req, res, next) => {
-    const groupId = req.params.groupId
-    const posts = await Post.find({groupId: groupId})
 
-    if  (!posts) {
-        return res.status(404).json({
-            message:"No posts found for this group"
+    try {
+        const groupId = req.params.groupId
+        const posts = await Post.find({groupId: groupId})
+        .sort({_id: -1})
+        .populate('ownerId')
+        .exec()
+        
+        
+        if  (!posts) {
+            return res.status(404).json({
+                message:"No posts found for this group"
+            })
+        }
+
+        const filteredPosts = posts.map(post=> {
+            return {
+                postId : post._id,
+                groupId : post.groupId,
+                content: post.content,
+                numberOfComments: post.comments.length,
+                owner: {
+                    imageUrl: post.ownerId.imageUrl,
+                    id: post.ownerId._id ,
+                    name: post.ownerId.name 
+                },
+               
+                createdAt: post.createdAt,
+            }
+        })
+    
+        res.status(200).json({
+            message:"fetched posts successfully",
+            posts:filteredPosts 
         })
     }
-
-    res.status(200).json({
-        message:"fetched posts successfully",
-        posts:posts 
-    })
+    catch(err) {
+        const error = errorCreator(err.message, 500)
+        return next (error)
+    }
+    
 }
 
 exports.createComment = async (req, res, next) => {
-    const postId = req.params.postId
-    const comment = req.body.comment
 
-    const post = await Post.findById(postId)
+    try {
+        const postId = req.body.postId
+        const content = req.body.content
+        const ownerId = req.body.ownerId
 
-    if (!post) {
-        return res.status(404).json({
-            message:"post not found"
+        const post = await Post.findById(postId)
+    
+        if (!post) {
+            return res.status(404).json({
+                message:"post not found"
+            })
+        }
+    
+         
+        post.comments = [...post.comments, {
+            content: content,
+            ownerId : ownerId,
+            createdAt: new Date()
+        }]
+
+        await post.save()
+    
+        return res.status(201).json({
+            message:"Added comment successfully",
         })
     }
-
-     
-    post.comments = [...post.comments, comment]
-    await post.save()
-
-    return res.status(201).json({
-        message:"Added comment successfully",
-    })
+    catch(err) {
+        const error = errorCreator(err.message, 500)
+        return next (error)
+    }
+    
     
 }
 
 exports.getPostComments = async (req, res, next) => {
-    const postId = req.params.postId
-    const post = await Post.findById(postId).populate('comments.ownerId')
-    
-    if (!post) {
-        return res.status(404).json({
-            message:"post not found"
+
+    try {
+        const postId = req.params.postId
+        const post = await Post.findById(postId).populate('comments.ownerId').exec()
+        
+        if (!post) {
+            return res.status(404).json({
+                message:"post not found"
+            })
+        }
+     
+        return res.status(200).json({
+            comments:post.comments
         })
     }
- 
-    return res.status(200).json({
-        comments:post.comments
-    })
+    catch(err) {
+        const error = errorCreator(err.message, 500)
+        return next (error)
+    }
+    
 }
 
 
 exports.getGroupMessages = async (req, res, next) => {
-    const groupId = req.params.groupId
+    try {
+        const groupId = req.params.groupId
 
-    const messages = await GroupMessage.find({groupId: groupId})
-
-    if (!messages) {
-        return res.json(404).json({
-            message:"Messages not found man"
+        const messages = await GroupMessage.find({groupId: groupId})
+    
+        if (!messages) {
+            return res.json(404).json({
+                message:"Messages not found"
+            })
+        }
+    
+        res.status(200).json({
+            messages:messages
         })
     }
-
-    res.status(200).json({
-        messages:messages
-    })
+    catch(err) {
+        const error = errorCreator(err.message, 500)
+        return next (error)
+    }
+    
 }
 
 exports.createMessage = async (req, res, next) => {
-    const groupId = req.body.groupId
-    const ownerId = req.body.ownerId
-    const content = req.body.content
+    try {
+        const groupId = req.body.groupId
+        const ownerId = req.body.ownerId
+        const content = req.body.content
+    
+        const newMessage = new GroupMessage({
+            groupId,
+            content,
+            ownerId
+        })
+    
+        await newMessage.save()
+    
+        io.getIO().emit('message', {
+            action: 'addmessage',
+            message:newMessage
+        })
+    
+        res.status(201).json({
+            message:"Created message successfully",
+            content:newMessage.content
+        })
+    }
+    catch(err) {
+        const error = errorCreator(err.message, 500)
+        return next (error)
+    }
+    
+}
 
-    const newMessage = new GroupMessage({
-        groupId,
-        content,
-        ownerId
+exports.getUniversityQuestions = async (req, res, next) => {
+
+    try {
+        const questions = await Question.find().sort({_id:-1}).populate('ownerId').exec()
+
+        if (!questions) {
+            return res.status(404).json({
+                message:"questions Not found"
+            })
+        }
+    
+        return res.status(200).json({
+            questions:questions
+        })
+    }
+    catch(err) {
+        const error = errorCreator(err.message, 500)
+        return next (error)
+    }
+
+    
+}
+
+exports.addUniversityQuestion = async (req, res, next) => {
+    
+    try {
+        const content = req.body.content 
+        const ownerId = req.body.ownerId
+        
+        const question = new Question({
+            content:content,
+            ownerId: ownerId,
+        })
+    
+        await question.save()
+    
+        
+    
+        res.status(201).json({
+            message:"Created Question Successfully",
+            question:question,
+        })
+    }
+    catch(err) {
+        const error = errorCreator(err.message, 500)
+        return next (error)
+    }
+    
+}
+
+exports.answerQuestion = async (req, res, next) => {
+
+    try {
+        const content = req.body.content 
+        const answerOwnerId = req.body.answerOwnerId
+        const questionId = req.params.questionId
+        
+        const question = await Question.findById(questionId)
+    
+        const newAnswer = {
+            content:content,
+            ownerId: answerOwnerId,
+            votes:0,
+            createdAt:new Date(),
+            bestAnswer : false
+        }
+    
+        question.answers = [...question.answers, newAnswer]
+    
+        await question.save()
+    
+        res.status(201).json({
+            answers:question.answers
+        })
+    }
+    catch(err) {
+        const error = errorCreator(err.message, 500)
+        return next (error)
+    }
+    
+}
+
+exports.getQuestionAnswers = async (req, res, next) => {
+    try {
+        const questionId = req.params.questionId
+
+        const question = await Question.findById(questionId).sort({_id:-1})
+        .populate('answers.ownerId')
+        .exec()
+    
+        res.status(200).json({
+            answers:question.answers
+        })
+    }
+    catch (err) {
+        const error = errorCreator(err.message, 500)
+        return next (error)
+    }
+    
+}
+
+
+exports.switchQuestionFollowingStatus = async (req, res, next) => {
+
+    try {
+        const questionId = req.params.questionId
+        const followerId = req.body.followerId
+    
+        const question = await Question.findById(questionId)
+
+        
+    
+        const followers = question.followers
+        if (checkExistingQuestionFollower(followers, followerId)) {
+            const updatedFollwers = unFollowQuestion(question, followerId)
+            question.followers = [...updatedFollwers]
+    
+            await question.save()
+
+    
+            return res.status(201).json({
+                message:true,
+                follower:null
+            })
+        }
+    
+        const updatedFollowers = followQuestion(question.followers, followerId)
+        
+        question.followers = [...updatedFollowers]
+    
+        await question.save()
+
+        const follower = question.followers.find(follower=> {
+            return follower.followerId == followerId
+        })
+        
+        
+    
+        res.status(201).json({
+            message:false ,
+            follower: follower
+        })
+    }
+    catch (err) {
+        const error = errorCreator(err.message, 500)
+        return next (error)
+    }
+    
+}
+
+const checkExistingQuestionFollower = (followers, followerId) => {
+    if (followers.length === 0) {
+        return false
+       
+    }
+    const existingFollowerIndex = followers.findIndex(follower=> {
+        return follower.followerId.toString() === followerId.toString()
+    })
+    
+    if (existingFollowerIndex > -1)
+        return true
+
+    return false     
+}
+
+const followQuestion = (followers, followerId) => {
+
+    const updatedFollwers = [...followers, {followerId:followerId}]
+    return updatedFollwers
+}
+
+const unFollowQuestion = (question, followerId) => {
+    const updatedFollwers = [...question.followers].filter(follower=> {
+        return follower.followerId.toString() !== followerId.toString()
     })
 
-    await newMessage.save()
-
-    io.getIO().emit('posts', {
-        action: 'addmessage',
-        message:newMessage
-    })
-
-    res.status(201).json({
-        message:"Created message successfully man",
-        content:newMessage.content
-    })
+    return updatedFollwers
 }

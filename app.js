@@ -1,7 +1,6 @@
 const express = require('express')
 const app = express()
 const studentRouter = require('./routes/student')
-const teacherRouter = require('./routes/teacher')
 const authRouter = require('./routes/auth')
 const bodyParser = require('body-parser')
 const multer = require('multer')
@@ -50,7 +49,6 @@ app.use('/images', express.static(path.join(__dirname, 'images')))
 
 
 app.use('/student', studentRouter)
-app.use('/teacher', teacherRouter)
 app.use('/auth', authRouter)
 
 app.use((error, req, res, next) => {
@@ -61,11 +59,7 @@ app.use((error, req, res, next) => {
 
 mongoose.connect(DATABASE_URI)
 .then(result=> {
-    const server = app.listen(4200)
-    const io = require('./socket').init(server)
-    io.on('connection', socket => {
-        console.log('client connected')
-    })
+    app.listen(4200)
     console.log('connected to database')
 })
 .catch(err=> {
