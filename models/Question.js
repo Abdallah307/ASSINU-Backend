@@ -20,7 +20,15 @@ const questionSchema = new Schema({
             },
             votes: Schema.Types.Number,
             createdAt: Schema.Types.Date,
-            bestAnswer: Schema.Types.Boolean
+            bestAnswer: Schema.Types.Boolean,
+            upvoters:  {
+                type: Schema.Types.Array,
+                default:[]
+            },
+            downvoters: {
+                type: Schema.Types.Array,
+                default:[]
+            },
         }
     ],
     followers: [
@@ -36,4 +44,7 @@ const questionSchema = new Schema({
     timestamps:true
 })
 
+questionSchema.index({content:'text'})
+
 module.exports = mongoose.model('UniversityQuestion', questionSchema)
+

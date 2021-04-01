@@ -31,6 +31,11 @@ router.post('/university/questions/:questionId', studentController.answerQuestio
 
 router.get('/university/questions/:questionId', studentController.getQuestionAnswers)
 
+router.put('/university/questions/answer/upvote/:questionId', studentController.upvoteAnswer)
+router.put('/university/questions/answer/downvote/:questionId', studentController.downvoteAnswer)
+
 router.put('/university/questions/follow/:questionId', studentController.switchQuestionFollowingStatus)
+
+router.get('/questions/search', studentController.searchQuestion)
 
 module.exports = router 
