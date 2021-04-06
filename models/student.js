@@ -25,7 +25,6 @@ const studentSchema = new Schema({
     token: {
         type:Schema.Types.String,
         default: '',
-        
     }
 })
 

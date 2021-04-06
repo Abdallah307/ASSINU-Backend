@@ -38,4 +38,12 @@ router.put('/university/questions/follow/:questionId', studentController.switchQ
 
 router.get('/questions/search', studentController.searchQuestion)
 
+router.get('/sharingcenter/public', studentController.getPublicSharingItems)
+router.get('/sharingcenter/department', studentController.getDepartmentSharingItems)
+
+router.get('/sharingcenter/public/search', studentController.searchPublicItems)
+
+router.post('/sharingcenter/public/shareitem', studentController.postPublicShareditem)
+router.post('/sharingcenter/department/shareitem', studentController.postDepartmentShareditem)
+
 module.exports = router 

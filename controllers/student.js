@@ -5,6 +5,8 @@ const Question = require('../models/Question')
 const ObjectId = require('mongodb').ObjectId
 const io = require('../socket')
 const errorCreator = require('../errorCreator')
+const {PublicSharedItem, DepartmentSharedItem} = require('../models/SharedItem');
+const { restart } = require('nodemon');
 
 
 exports.getStudentInfo = async (req, res, next) => {
@@ -244,7 +246,7 @@ exports.createMessage = async (req, res, next) => {
 exports.getUniversityQuestions = async (req, res, next) => {
 
     try {
-        const questions = await Question.find().sort({ _id: -1 }).populate('ownerId').exec()
+        const questions = await Question.find().sort({ _id: -1 }).populate('ownerId').populate('answers.ownerId').exec()
 
         if (!questions) {
             return res.status(404).json({
@@ -312,6 +314,7 @@ exports.answerQuestion = async (req, res, next) => {
         question.answers = [...question.answers, newAnswer]
 
         await question.save()
+        
 
         res.status(201).json({
             answers: question.answers
@@ -594,6 +597,117 @@ exports.searchQuestion = async (req, res, next) => {
         results: searchResults
     })
 }
+
+exports.getPublicSharingItems = async (req, res, next) => {
+    try {
+        const items = await PublicSharedItem.find()
+
+        if (!items) {
+            return res.status(404).json({
+                message:'no items found'
+            })
+        }
+
+        res.status(200).json({
+            items:items
+        })
+    }
+    catch(err) {
+        const error = errorCreator(err.message, 500)
+        return next (error)
+    }
+}
+
+exports.postPublicShareditem = async (req, res, next) => {
+    try {
+
+        const {name, details, ownerId} = req.body
+        const imageUrl = req.file.path 
+
+        const newItem = new PublicSharedItem({
+            name:name,
+            imageUrl:imageUrl,
+            details:details,
+            ownerId:ownerId,
+        })
+
+        await newItem.save()
+
+        res.status(201).json({
+            item:newItem
+        })
+    }
+    catch (err) {
+        console.log(err)
+        const error = errorCreator(err.message, 500)
+        return next (error)
+    }
+}
+
+exports.getDepartmentSharingItems = async (req, res, next) => {
+    try {
+        const items = await DepartmentSharedItem.find()
+
+        if (!items) {
+            return res.status(404).json({
+                message:'no items found'
+            })
+        }
+
+        res.status(200).json({
+            items:items
+        })
+    }
+    catch(err) {
+        const error = errorCreator(err.message, 500)
+        return next (error)
+    }
+}
+
+exports.postDepartmentShareditem = async (req, res, next) => {
+    try {
+
+        const {name, details, ownerId} = req.body
+        const imageUrl = req.file.path 
+
+        const newItem = new DepartmentSharedItem({
+            name:name,
+            imageUrl:imageUrl,
+            details:details,
+            ownerId:ownerId,
+        })
+
+        await newItem.save()
+
+        res.status(201).json({
+            item:newItem
+        })
+    }
+    catch (err) {
+        const error = errorCreator(err.message, 500)
+        return next (error)
+    }
+}
+
+exports.searchPublicItems = async (req, res, next) => {
+    try {
+        const itemName = req.query.name
+        const items = await PublicSharedItem
+        .find( { $text: { $search: itemName } } )
+    
+        res.status(200).json({
+            items: items
+        }) 
+    }
+    catch (err) {
+        const error = errorCreator(err.message, 500)
+        return next (error)
+    }
+    
+}
+
+
+
 
 const checkExistingQuestionFollower = (followers, followerId) => {
     if (followers.length === 0) {
