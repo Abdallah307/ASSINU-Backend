@@ -5,13 +5,21 @@ const Question = require('../models/Question')
 const ObjectId = require('mongodb').ObjectId
 const io = require('../socket')
 const errorCreator = require('../errorCreator')
-const {PublicSharedItem, DepartmentSharedItem} = require('../models/SharedItem');
-const { restart } = require('nodemon');
+const { PublicSharedItem, DepartmentSharedItem } = require('../models/SharedItem');
+const Answer = require('../models/answer')
+const AnswerComment = require('../models/answerComment')
+const Replay = require('../models/replay')
 
 
 exports.getStudentInfo = async (req, res, next) => {
 
     try {
+
+        // if (!req.userId) {
+        //     return res.status(403).json({
+        //         message:'Please sign in first'
+        //     })
+        // }
         const student = await Student.findById(req.userId)
 
         if (!student) {
@@ -63,7 +71,6 @@ exports.createPost = async (req, res, next) => {
         const groupId = req.body.groupId
         const content = req.body.content
         const ownerId = req.body.ownerId
-        console.log(groupId, "content: " + content, ownerId)
         const post = new Post({
             content: content,
             groupId: groupId,
@@ -89,9 +96,10 @@ exports.getGroupPosts = async (req, res, next) => {
 
     try {
         const groupId = req.params.groupId
+        const populationFieldsFilter = 'name imageUrl'
         const posts = await Post.find({ groupId: groupId })
             .sort({ _id: -1 })
-            .populate('ownerId')
+            .populate('ownerId', populationFieldsFilter)
             .exec()
 
 
@@ -101,25 +109,11 @@ exports.getGroupPosts = async (req, res, next) => {
             })
         }
 
-        const filteredPosts = posts.map(post => {
-            return {
-                postId: post._id,
-                groupId: post.groupId,
-                content: post.content,
-                numberOfComments: post.comments.length,
-                owner: {
-                    imageUrl: post.ownerId.imageUrl,
-                    id: post.ownerId._id,
-                    name: post.ownerId.name
-                },
-
-                createdAt: post.createdAt,
-            }
-        })
+        
 
         res.status(200).json({
             message: "fetched posts successfully",
-            posts: filteredPosts
+            posts: posts 
         })
     }
     catch (err) {
@@ -169,7 +163,13 @@ exports.getPostComments = async (req, res, next) => {
 
     try {
         const postId = req.params.postId
-        const post = await Post.findById(postId).populate('comments.ownerId').exec()
+
+        const populationFieldsFilter = 'name imageUrl'
+        const post = await Post
+        .findById(postId)
+        .populate('comments.ownerId', populationFieldsFilter)
+        .exec()
+
 
         if (!post) {
             return res.status(404).json({
@@ -246,7 +246,12 @@ exports.createMessage = async (req, res, next) => {
 exports.getUniversityQuestions = async (req, res, next) => {
 
     try {
-        const questions = await Question.find().sort({ _id: -1 }).populate('ownerId').populate('answers.ownerId').exec()
+        const questions = await Question
+        .find()
+        .sort({ _id: -1 })
+        .populate('ownerId', 'imageUrl name')
+        .populate('answers.ownerId', 'imageUrl name')
+        .exec()
 
         if (!questions) {
             return res.status(404).json({
@@ -278,10 +283,10 @@ exports.addUniversityQuestion = async (req, res, next) => {
         })
 
         const resul = await question.save()
-        
-        const ques = await Question.findById(resul._id).populate('ownerId').exec()
 
-        
+        const ques = await Question.findById(resul._id)
+        .populate('ownerId', 'name imageUrl').exec()
+
         res.status(201).json({
             message: "Created Question Successfully",
             question: ques
@@ -301,23 +306,25 @@ exports.answerQuestion = async (req, res, next) => {
         const answerOwnerId = req.body.answerOwnerId
         const questionId = req.params.questionId
 
-        const question = await Question.findById(questionId)
 
-        const newAnswer = {
+        const newAnswer = new Answer({
             content: content,
             ownerId: answerOwnerId,
             votes: 0,
             createdAt: new Date(),
-            bestAnswer: false
-        }
+            bestAnswer: false,
+            questionId:questionId
+        })
 
-        question.answers = [...question.answers, newAnswer]
-
-        await question.save()
+        const result = await newAnswer.save()
+        const answerId = result._id
         
+        const answer = await Answer.findById(answerId)
+        .populate('ownerId', 'name imageUrl')
+        .exec()
 
         res.status(201).json({
-            answers: question.answers
+            answer: answer  
         })
     }
     catch (err) {
@@ -331,12 +338,16 @@ exports.getQuestionAnswers = async (req, res, next) => {
     try {
         const questionId = req.params.questionId
 
-        const question = await Question.findById(questionId).sort({ _id: -1 })
-            .populate('answers.ownerId')
-            .exec()
+        const answers = await Answer.find({questionId:questionId})
+        .populate('ownerId', 'imageUrl name')
+        .exec()
 
+        if (!answers) {
+            return res.status(404).json({})
+        }
+        
         res.status(200).json({
-            answers: question.answers
+            answers: answers
         })
     }
     catch (err) {
@@ -369,7 +380,6 @@ exports.upvoteAnswer = async (req, res, next) => {
         if (answerIndex > -1) {
             const upvoters = question.answers[answerIndex].upvoters
             const downvoters = question.answers[answerIndex].downvoters
-            console.log("The upvoters is : ", upvoters)
             const upvoterIndex = checkExistingUpvoter(upvoters, upvoterId)
 
             if (upvoterIndex > -1) {
@@ -383,7 +393,7 @@ exports.upvoteAnswer = async (req, res, next) => {
                     upvoters: question.answers[answerIndex].upvoters,
                     downvoters: question.answers[answerIndex].downvoters,
                     answerIndex: answerIndex,
-                    votes:question.answers[answerIndex].votes
+                    votes: question.answers[answerIndex].votes
                 })
             }
             else {
@@ -406,7 +416,7 @@ exports.upvoteAnswer = async (req, res, next) => {
                         upvoters: question.answers[answerIndex].upvoters,
                         downvoters: question.answers[answerIndex].downvoters,
                         answerIndex: answerIndex,
-                        votes:question.answers[answerIndex].votes
+                        votes: question.answers[answerIndex].votes
                     })
                 }
                 else {
@@ -419,7 +429,7 @@ exports.upvoteAnswer = async (req, res, next) => {
                         upvoters: question.answers[answerIndex].upvoters,
                         downvoters: question.answers[answerIndex].downvoters,
                         answerIndex: answerIndex,
-                        votes:question.answers[answerIndex].votes
+                        votes: question.answers[answerIndex].votes
                     })
                 }
 
@@ -465,7 +475,6 @@ exports.downvoteAnswer = async (req, res, next) => {
         if (answerIndex > -1) {
             const upvoters = question.answers[answerIndex].upvoters
             const downvoters = question.answers[answerIndex].downvoters
-            console.log("The downvoters is : ", downvoters)
 
             const downvoterIndex = checkExistingDownVoter(downvoters, downvoterId)
 
@@ -480,7 +489,7 @@ exports.downvoteAnswer = async (req, res, next) => {
                     upvoters: question.answers[answerIndex].upvoters,
                     downvoters: question.answers[answerIndex].downvoters,
                     answerIndex: answerIndex,
-                    votes:question.answers[answerIndex].votes
+                    votes: question.answers[answerIndex].votes
                 })
             }
             else {
@@ -503,7 +512,7 @@ exports.downvoteAnswer = async (req, res, next) => {
                         upvoters: question.answers[answerIndex].upvoters,
                         downvoters: question.answers[answerIndex].downvoters,
                         answerIndex: answerIndex,
-                        votes:question.answers[answerIndex].votes
+                        votes: question.answers[answerIndex].votes
                     })
                 }
                 else {
@@ -516,7 +525,7 @@ exports.downvoteAnswer = async (req, res, next) => {
                         upvoters: question.answers[answerIndex].upvoters,
                         downvoters: question.answers[answerIndex].downvoters,
                         answerIndex: answerIndex,
-                        votes:question.answers[answerIndex].votes
+                        votes: question.answers[answerIndex].votes
                     })
                 }
 
@@ -533,6 +542,66 @@ exports.downvoteAnswer = async (req, res, next) => {
 
     }
     catch (err) {
+        const error = errorCreator(err.message, 500)
+        return next(error)
+    }
+}
+
+exports.postAddAnswerComment = async (req, res, next) => {
+    // const questionId = req.body.questionId
+    const answerId = req.body.answerId 
+    const commentOwnerId = req.body.commentOwnerId
+    const content = req.body.content
+
+    try {
+
+        //const answer = await Answer.findById(answerId)
+        
+        const newComment = new AnswerComment ({
+            answerId:answerId,
+            ownerId:commentOwnerId,
+            content:content
+        })
+
+        
+
+        const resul = await newComment.save()
+
+        const resultComment = await AnswerComment.findById(resul._id)
+        .populate('ownerId', 'name imageUrl')
+        .exec()
+
+       
+
+           return res.status(201).json({
+               message:'added a new comment',
+               comment:resultComment
+           })
+        
+    }
+    catch(err) {
+        const error = errorCreator(err.message, 500)
+        return next(error)
+    }
+}
+
+exports.getAnswerComments = async (req, res, next) => {
+    try {
+        const answerId = req.params.answerId 
+
+
+        // const answer = await Answer.findById(answerId)
+        // .populate('comments.ownerId', 'name imageUrl')
+
+        const comments = await AnswerComment.find({answerId:answerId})
+        .populate('ownerId', 'name imageUrl')
+        .exec()
+
+        return res.status(200).json({
+            comments:comments
+        })
+    }
+    catch(err) {
         const error = errorCreator(err.message, 500)
         return next(error)
     }
@@ -591,7 +660,7 @@ exports.switchQuestionFollowingStatus = async (req, res, next) => {
 exports.searchQuestion = async (req, res, next) => {
     const searchQuery = req.query.questionText
     const searchResults = await Question
-    .find( { $text: { $search: searchQuery } } ).populate('ownerId').exec()
+        .find({ $text: { $search: searchQuery } }).populate('ownerId').exec()
 
     res.status(200).json({
         results: searchResults
@@ -604,88 +673,89 @@ exports.getPublicSharingItems = async (req, res, next) => {
 
         if (!items) {
             return res.status(404).json({
-                message:'no items found'
+                message: 'no items found'
             })
         }
 
         res.status(200).json({
-            items:items
+            items: items
         })
     }
-    catch(err) {
+    catch (err) {
         const error = errorCreator(err.message, 500)
-        return next (error)
+        return next(error)
     }
 }
 
 exports.postPublicShareditem = async (req, res, next) => {
     try {
 
-        const {name, details, ownerId} = req.body
-        const imageUrl = req.file.path 
+        const { name, details, ownerId } = req.body
+        const imageUrl = req.file.path
 
         const newItem = new PublicSharedItem({
-            name:name,
-            imageUrl:imageUrl,
-            details:details,
-            ownerId:ownerId,
+            name: name,
+            imageUrl: imageUrl,
+            details: details,
+            ownerId: ownerId,
         })
 
         await newItem.save()
 
         res.status(201).json({
-            item:newItem
+            item: newItem
         })
     }
     catch (err) {
-        console.log(err)
         const error = errorCreator(err.message, 500)
-        return next (error)
+        return next(error)
     }
 }
 
 exports.getDepartmentSharingItems = async (req, res, next) => {
     try {
-        const items = await DepartmentSharedItem.find()
+        const departmentId = req.params.departmentId
+        const items = await DepartmentSharedItem.find({ departmentId: departmentId })
 
         if (!items) {
             return res.status(404).json({
-                message:'no items found'
+                message: 'no items found'
             })
         }
-
         res.status(200).json({
-            items:items
+            items: items
         })
     }
-    catch(err) {
+    catch (err) {
         const error = errorCreator(err.message, 500)
-        return next (error)
+        return next(error)
     }
 }
 
 exports.postDepartmentShareditem = async (req, res, next) => {
     try {
 
-        const {name, details, ownerId} = req.body
-        const imageUrl = req.file.path 
+        const { name, details, ownerId, departmentId } = req.body
+        const imageUrl = req.file.path
 
         const newItem = new DepartmentSharedItem({
-            name:name,
-            imageUrl:imageUrl,
-            details:details,
-            ownerId:ownerId,
+            name: name,
+            imageUrl: imageUrl,
+            details: details,
+            ownerId: ownerId,
+            departmentId: departmentId
         })
+
 
         await newItem.save()
 
         res.status(201).json({
-            item:newItem
+            item: newItem
         })
     }
     catch (err) {
         const error = errorCreator(err.message, 500)
-        return next (error)
+        return next(error)
     }
 }
 
@@ -693,17 +763,125 @@ exports.searchPublicItems = async (req, res, next) => {
     try {
         const itemName = req.query.name
         const items = await PublicSharedItem
-        .find( { $text: { $search: itemName } } )
-    
+            .find({ $text: { $search: itemName } })
+
         res.status(200).json({
             items: items
-        }) 
+        })
     }
     catch (err) {
         const error = errorCreator(err.message, 500)
-        return next (error)
+        return next(error)
+    }
+
+}
+
+exports.searchDepartmentItems = async (req, res, next) => {
+    try {
+        const itemName = req.query.name
+        const items = await DepartmentSharedItem
+            .find({ $text: { $search: itemName } })
+
+
+        res.status(200).json({
+            items: items
+        })
+    }
+    catch (err) {
+        const error = errorCreator(err.message, 500)
+        return next(error)
+    }
+}
+
+
+exports.fetchUserItems = async(req, res, next) => {
+    try {
+        const userId = req.params.userId
+        const items1 = await DepartmentSharedItem.find({ownerId:userId})
+        const items2 = await PublicSharedItem.find({ownerId:userId})
+
+        const items = items1.concat(items2)
+
+        return res.status(200).json({
+            items:items
+        })
+
+    }
+    catch(err) {
+        res.status(500).json({
+            error: error
+        })
     }
     
+}
+
+exports.getCommentReplays = async (req, res, next) => {
+    try {
+        const commentId = req.params.commentId
+
+        const replays = await Replay.find({commentId:commentId})
+        .populate('ownerId', 'name imageUrl')
+        .exec()
+
+        if (!replays) {
+            return res.status(404).json({
+                message:'No replays found'
+            })
+        }
+
+        return res.status(200).json({
+            replays:replays
+        })
+        // const comment = await AnswerComment.findById(commentId)
+        // .populate('ownerId', 'name imageUrl')
+        // .populate('replays.ownerId', 'name imageUrl')
+        // .exec()
+
+        // if (!comment) {
+        //     return res.status(404).json({
+        //         message:'comment not found'
+        //     })
+        // }
+
+
+        // const replays = comment.replays
+
+        // return res.status(200).json({
+        //     replays:replays 
+        // })
+    }
+    catch(err) {
+        const error = errorCreator(err.message, 500)
+        return next(error)
+    }
+    
+}
+
+exports.addCommentReplay = async (req, res, next) => {
+    try {
+        const commentId = req.params.commentId 
+        const ownerId = req.body.ownerId
+        const content = req.body.content
+
+        const newReplay = new Replay({
+            ownerId:ownerId,
+            content:content,
+            commentId:commentId,
+        })
+
+       const resul =  await newReplay.save()
+
+       const replay = await Replay.findById(resul._id)
+       .populate('ownerId', 'name imageUrl')
+
+        return res.status(201).json({
+            replay:replay
+        })
+
+    }catch (err){
+        const error = errorCreator(err.message, 500)
+        return next(error)
+    }
 }
 
 

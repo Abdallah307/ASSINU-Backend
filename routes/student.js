@@ -9,8 +9,7 @@ const isAuth = require('../middleware/is-auth')
 
 router.get('/info', studentController.getStudentInfo)
 
-router.get('/:studentId', studentController.getImageAndName)
-
+//router.get('/:studentId', studentController.getImageAndName)
 router.post('/createpost', studentController.createPost)
 
 router.get('/group/posts/:groupId', studentController.getGroupPosts)
@@ -25,11 +24,17 @@ router.post('/group/messages/addmessage', studentController.createMessage)
 
 router.get('/university/questions', studentController.getUniversityQuestions)
 
-router.post('/university/questions/addquestion', studentController.addUniversityQuestion)
+router.post('/university/questions/addquestion', studentController.addUniversityQuestion) // needs editing
 
 router.post('/university/questions/:questionId', studentController.answerQuestion)
 
 router.get('/university/questions/:questionId', studentController.getQuestionAnswers)
+
+router.get('/university/questions/answer/:answerId/comments', studentController.getAnswerComments)
+
+router.post('/university/questions/answer/addcomment', studentController.postAddAnswerComment)
+router.get('/university/questions/answers/comments/:commentId/replays', studentController.getCommentReplays)
+router.post('/university/questions/answers/comments/:commentId/replays/addreplay', studentController.addCommentReplay)
 
 router.put('/university/questions/answer/upvote/:questionId', studentController.upvoteAnswer)
 router.put('/university/questions/answer/downvote/:questionId', studentController.downvoteAnswer)
@@ -39,9 +44,12 @@ router.put('/university/questions/follow/:questionId', studentController.switchQ
 router.get('/questions/search', studentController.searchQuestion)
 
 router.get('/sharingcenter/public', studentController.getPublicSharingItems)
-router.get('/sharingcenter/department', studentController.getDepartmentSharingItems)
 
 router.get('/sharingcenter/public/search', studentController.searchPublicItems)
+router.get('/sharingcenter/department/search', studentController.searchDepartmentItems)
+router.get('/sharingcenter/department/:departmentId', studentController.getDepartmentSharingItems)
+
+router.get('/sharingcenter/myitems/:userId', studentController.fetchUserItems)
 
 router.post('/sharingcenter/public/shareitem', studentController.postPublicShareditem)
 router.post('/sharingcenter/department/shareitem', studentController.postDepartmentShareditem)

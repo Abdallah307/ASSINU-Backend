@@ -11,26 +11,6 @@ const questionSchema = new Schema({
         ref:'Student'
        
     },
-    answers: [
-        {
-            content: Schema.Types.String,
-            ownerId: {
-                type: Schema.Types.ObjectId,
-                ref:"Student"
-            },
-            votes: Schema.Types.Number,
-            createdAt: Schema.Types.Date,
-            bestAnswer: Schema.Types.Boolean,
-            upvoters:  {
-                type: Schema.Types.Array,
-                default:[]
-            },
-            downvoters: {
-                type: Schema.Types.Array,
-                default:[]
-            },
-        }
-    ],
     followers: [
         {
             followerId: {
@@ -38,7 +18,11 @@ const questionSchema = new Schema({
                 ref:"Student"
             }
         }
-    ]
+    ],
+    numberOfAnswers:{
+        type:Schema.Types.Number,
+        default:0,
+    }
     
 }, {
     timestamps:true

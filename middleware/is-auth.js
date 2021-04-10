@@ -19,7 +19,7 @@ const isAuth = (req, res, next) => {
     let decodedToken = jwt.verify(token, "iamabdallahdereiaiamacomputerengineer")
 
     if (!decodedToken) {
-        return res.json(403).json({
+        return res.status(403).json({
             message: "Authentication failed"
         })
     }

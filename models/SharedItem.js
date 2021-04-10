@@ -19,6 +19,9 @@ const sharedItemSchema = new Schema({
         type:Schema.Types.ObjectId,
         required:true
     },
+    departmentId: {
+        type:Schema.Types.ObjectId,
+    }
 })
 
 sharedItemSchema.index({name:'text'})

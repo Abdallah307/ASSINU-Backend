@@ -2,7 +2,7 @@ const Student = require('../models/student')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const errorCreator = require('../errorCreator')
-
+const mongodb = require('mongodb')
 exports.signUp = async (req, res, next) => {
     const name = req.body.name 
     const email = req.body.email
@@ -43,7 +43,6 @@ const checkExistingEmail = async (email) => {
 
 
 exports.signIn = async (req, res, next) => {
-
     const email = req.body.email 
     const password = req.body.password
 
@@ -67,7 +66,40 @@ exports.signIn = async (req, res, next) => {
     const token = createToken(student)
     student.token = token 
     await student.save()
-    return res.status(200).json(student)
+    return res.status(200).json({
+        _id:student._id,
+        name:student.name,
+        bio:student.bio,
+        email:student.email,
+        imageUrl:student.imageUrl,
+        token:student.token,
+    })
+    
+}
+
+exports.signOut = async (req,res, next) => {
+    try {
+        const student = await Student.findById(req.userId)
+        if (!student) {
+            return res.status(404).json({
+                message:'no student'
+            })
+        }
+        console.log(student)
+
+        student.token = ''
+
+        await student.save()
+
+        req.userId = null
+
+        res.status(200).json({
+            message:'Signed out successfully'
+        })
+    }
+    catch (err) {
+        console.log(err)
+    }
     
 }
 
