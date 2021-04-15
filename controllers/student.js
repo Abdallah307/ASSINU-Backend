@@ -9,7 +9,8 @@ const { PublicSharedItem, DepartmentSharedItem } = require('../models/SharedItem
 const Answer = require('../models/answer')
 const AnswerComment = require('../models/answerComment')
 const Replay = require('../models/replay')
-
+const GroupPoll = require('../models/GroupPolls')
+const mongoose = require('mongoose')
 
 exports.getStudentInfo = async (req, res, next) => {
 
@@ -39,6 +40,34 @@ exports.getStudentInfo = async (req, res, next) => {
         return next(error)
     }
 
+}
+
+exports.getGroupMembersInfo = async (req, res, next) => {
+    try {
+        const membersEmails = req.body.emails
+
+
+        let members = []
+        const fetchingFilter = 'name imageUrl'
+        for (let i = 0; i < membersEmails.length; i++) {
+            const member = await Student.find({ email: membersEmails[i] }, fetchingFilter)
+
+            if (member.length !== 0) {
+                members.push(member[0])
+            }
+            if (i == (membersEmails.length - 1)) {
+                return res.status(200).json({
+                    members: members
+                })
+            }
+
+        }
+    }
+    catch (err) {
+        return res.status(500).json({
+            error: err
+        })
+    }
 }
 
 exports.getImageAndName = async (req, res, next) => {
@@ -71,20 +100,39 @@ exports.createPost = async (req, res, next) => {
         const groupId = req.body.groupId
         const content = req.body.content
         const ownerId = req.body.ownerId
-        const post = new Post({
-            content: content,
-            groupId: groupId,
-            ownerId: ownerId,
-        })
+        const image = req.file 
 
-        await post.save()
+        let post;
+
+        if (!image) {
+            post = new Post({
+                content: content,
+                groupId: groupId,
+                ownerId: ownerId,
+            })
+        }
+        else {
+            post = new Post({
+                content:content,
+                groupId:groupId,
+                ownerId:ownerId,
+                imageUrl:image.path
+            })
+        }
+
+        const result = await post.save()
+
+        const resul = await Post.findById(result._id)
+        .populate('ownerId', 'name imageUrl')
+        .exec()
 
         res.status(201).json({
             message: "Created Post Successfully",
-            post: post,
+            post: resul,
         })
     }
     catch (err) {
+        console.log(err.message)
         const error = errorCreator(err.message, 500)
         return next(error)
     }
@@ -109,11 +157,11 @@ exports.getGroupPosts = async (req, res, next) => {
             })
         }
 
-        
+
 
         res.status(200).json({
             message: "fetched posts successfully",
-            posts: posts 
+            posts: posts
         })
     }
     catch (err) {
@@ -166,9 +214,9 @@ exports.getPostComments = async (req, res, next) => {
 
         const populationFieldsFilter = 'name imageUrl'
         const post = await Post
-        .findById(postId)
-        .populate('comments.ownerId', populationFieldsFilter)
-        .exec()
+            .findById(postId)
+            .populate('comments.ownerId', populationFieldsFilter)
+            .exec()
 
 
         if (!post) {
@@ -224,16 +272,17 @@ exports.createMessage = async (req, res, next) => {
             ownerId
         })
 
-        await newMessage.save()
+        const resul = await newMessage.save()
+
+        const message = await GroupMessage.findById(resul._id)
 
         io.getIO().emit('message', {
             action: 'addmessage',
-            message: newMessage
+            message: message
         })
 
         res.status(201).json({
-            message: "Created message successfully",
-            content: newMessage.content
+            message: message 
         })
     }
     catch (err) {
@@ -247,11 +296,11 @@ exports.getUniversityQuestions = async (req, res, next) => {
 
     try {
         const questions = await Question
-        .find()
-        .sort({ _id: -1 })
-        .populate('ownerId', 'imageUrl name')
-        .populate('answers.ownerId', 'imageUrl name')
-        .exec()
+            .find()
+            .sort({ _id: -1 })
+            .populate('ownerId', 'imageUrl name')
+            .populate('answers.ownerId', 'imageUrl name')
+            .exec()
 
         if (!questions) {
             return res.status(404).json({
@@ -285,7 +334,7 @@ exports.addUniversityQuestion = async (req, res, next) => {
         const resul = await question.save()
 
         const ques = await Question.findById(resul._id)
-        .populate('ownerId', 'name imageUrl').exec()
+            .populate('ownerId', 'name imageUrl').exec()
 
         res.status(201).json({
             message: "Created Question Successfully",
@@ -313,18 +362,18 @@ exports.answerQuestion = async (req, res, next) => {
             votes: 0,
             createdAt: new Date(),
             bestAnswer: false,
-            questionId:questionId
+            questionId: questionId
         })
 
         const result = await newAnswer.save()
         const answerId = result._id
-        
+
         const answer = await Answer.findById(answerId)
-        .populate('ownerId', 'name imageUrl')
-        .exec()
+            .populate('ownerId', 'name imageUrl')
+            .exec()
 
         res.status(201).json({
-            answer: answer  
+            answer: answer
         })
     }
     catch (err) {
@@ -338,14 +387,14 @@ exports.getQuestionAnswers = async (req, res, next) => {
     try {
         const questionId = req.params.questionId
 
-        const answers = await Answer.find({questionId:questionId})
-        .populate('ownerId', 'imageUrl name')
-        .exec()
+        const answers = await Answer.find({ questionId: questionId })
+            .populate('ownerId', 'imageUrl name')
+            .exec()
 
         if (!answers) {
             return res.status(404).json({})
         }
-        
+
         res.status(200).json({
             answers: answers
         })
@@ -549,37 +598,37 @@ exports.downvoteAnswer = async (req, res, next) => {
 
 exports.postAddAnswerComment = async (req, res, next) => {
     // const questionId = req.body.questionId
-    const answerId = req.body.answerId 
+    const answerId = req.body.answerId
     const commentOwnerId = req.body.commentOwnerId
     const content = req.body.content
 
     try {
 
         //const answer = await Answer.findById(answerId)
-        
-        const newComment = new AnswerComment ({
-            answerId:answerId,
-            ownerId:commentOwnerId,
-            content:content
+
+        const newComment = new AnswerComment({
+            answerId: answerId,
+            ownerId: commentOwnerId,
+            content: content
         })
 
-        
+
 
         const resul = await newComment.save()
 
         const resultComment = await AnswerComment.findById(resul._id)
-        .populate('ownerId', 'name imageUrl')
-        .exec()
+            .populate('ownerId', 'name imageUrl')
+            .exec()
 
-       
 
-           return res.status(201).json({
-               message:'added a new comment',
-               comment:resultComment
-           })
-        
+
+        return res.status(201).json({
+            message: 'added a new comment',
+            comment: resultComment
+        })
+
     }
-    catch(err) {
+    catch (err) {
         const error = errorCreator(err.message, 500)
         return next(error)
     }
@@ -587,21 +636,21 @@ exports.postAddAnswerComment = async (req, res, next) => {
 
 exports.getAnswerComments = async (req, res, next) => {
     try {
-        const answerId = req.params.answerId 
+        const answerId = req.params.answerId
 
 
         // const answer = await Answer.findById(answerId)
         // .populate('comments.ownerId', 'name imageUrl')
 
-        const comments = await AnswerComment.find({answerId:answerId})
-        .populate('ownerId', 'name imageUrl')
-        .exec()
+        const comments = await AnswerComment.find({ answerId: answerId })
+            .populate('ownerId', 'name imageUrl')
+            .exec()
 
         return res.status(200).json({
-            comments:comments
+            comments: comments
         })
     }
-    catch(err) {
+    catch (err) {
         const error = errorCreator(err.message, 500)
         return next(error)
     }
@@ -794,43 +843,43 @@ exports.searchDepartmentItems = async (req, res, next) => {
 }
 
 
-exports.fetchUserItems = async(req, res, next) => {
+exports.fetchUserItems = async (req, res, next) => {
     try {
         const userId = req.params.userId
-        const items1 = await DepartmentSharedItem.find({ownerId:userId})
-        const items2 = await PublicSharedItem.find({ownerId:userId})
+        const items1 = await DepartmentSharedItem.find({ ownerId: userId })
+        const items2 = await PublicSharedItem.find({ ownerId: userId })
 
         const items = items1.concat(items2)
 
         return res.status(200).json({
-            items:items
+            items: items
         })
 
     }
-    catch(err) {
+    catch (err) {
         res.status(500).json({
             error: error
         })
     }
-    
+
 }
 
 exports.getCommentReplays = async (req, res, next) => {
     try {
         const commentId = req.params.commentId
 
-        const replays = await Replay.find({commentId:commentId})
-        .populate('ownerId', 'name imageUrl')
-        .exec()
+        const replays = await Replay.find({ commentId: commentId })
+            .populate('ownerId', 'name imageUrl')
+            .exec()
 
         if (!replays) {
             return res.status(404).json({
-                message:'No replays found'
+                message: 'No replays found'
             })
         }
 
         return res.status(200).json({
-            replays:replays
+            replays: replays
         })
         // const comment = await AnswerComment.findById(commentId)
         // .populate('ownerId', 'name imageUrl')
@@ -850,39 +899,144 @@ exports.getCommentReplays = async (req, res, next) => {
         //     replays:replays 
         // })
     }
-    catch(err) {
+    catch (err) {
         const error = errorCreator(err.message, 500)
         return next(error)
     }
-    
+
 }
 
 exports.addCommentReplay = async (req, res, next) => {
     try {
-        const commentId = req.params.commentId 
+        const commentId = req.params.commentId
         const ownerId = req.body.ownerId
         const content = req.body.content
 
         const newReplay = new Replay({
-            ownerId:ownerId,
-            content:content,
-            commentId:commentId,
+            ownerId: ownerId,
+            content: content,
+            commentId: commentId,
         })
 
-       const resul =  await newReplay.save()
+        const resul = await newReplay.save()
 
-       const replay = await Replay.findById(resul._id)
-       .populate('ownerId', 'name imageUrl')
+        const replay = await Replay.findById(resul._id)
+            .populate('ownerId', 'name imageUrl')
 
         return res.status(201).json({
-            replay:replay
+            replay: replay
         })
 
-    }catch (err){
+    } catch (err) {
         const error = errorCreator(err.message, 500)
         return next(error)
     }
 }
+
+exports.getGroupPolls = async (req, res, next) => {
+    try {
+        const groupId = req.params.groupId
+
+        const polls = await GroupPoll.find({ groupId: groupId })
+            .populate('ownerId', 'name imageUrl')
+            .exec()
+        const posts = await Post.find({ groupId: groupId })
+
+        const data = posts.concat(polls)
+
+        const modi =
+            console.log(modi)
+        if (!polls) {
+            return res.status(404).json({
+                message: "no polls found"
+            })
+        }
+
+        return res.status(200).json({
+            data: modi
+        })
+
+
+    }
+    catch (err) {
+        const error = errorCreator(err.message, 500)
+        return next(error)
+    }
+}
+
+exports.postCreateGroupPoll = async (req, res, next) => {
+    try {
+        const groupId = req.body.groupId
+        const ownerId = req.body.ownerId
+        let choices = req.body.choices
+        const content = req.body.content
+
+        choices = choices.map(choice => {
+            return {
+                numberOfVotes: 0,
+                choiceContent: choice
+            }
+        })
+
+        const newPoll = new GroupPoll({
+            ownerId: ownerId,
+            groupId: groupId,
+            choices: choices,
+            content: content
+        })
+
+        const resul = await newPoll.save()
+
+        const result = await GroupPoll.findById(resul._id)
+            .populate('ownerId', 'name imageUrl')
+            .exec()
+
+
+        return res.status(201).json({
+            poll: result
+        })
+
+    }
+    catch (err) {
+        const error = errorCreator(err.message, 500)
+        return next(error)
+    }
+
+
+}
+
+//not completed
+exports.postVotePoll = async (req, res, next) => {
+    try {
+        const pollId = req.body.pollId
+        const voterId = req.body.voterId
+        const choiceId = req.body.choiceId
+
+        const poll = await GroupPoll.findById(pollId)
+
+        const choiceIndex = poll.choices.findIndex(choice => {
+            return choice._id == choiceId
+        })
+
+
+        poll.choices[choiceIndex].numberOfVotes += 1
+        poll.choices[choiceIndex].voters = [...poll.choices[choiceIndex].voters, {
+            voterId: voterId
+        }]
+
+        await poll.save()
+
+
+        res.status(201).json({
+            poll: poll
+        })
+    }
+    catch (err) {
+        const error = errorCreator(err.message, 500)
+        return next(error)
+    }
+}
+
 
 
 

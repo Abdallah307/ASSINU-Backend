@@ -59,7 +59,11 @@ app.use((error, req, res, next) => {
 
 mongoose.connect(DATABASE_URI)
 .then(result=> {
-    app.listen(4200)
+    const server = app.listen(4200)
+    const io = require('./socket').init(server)
+    io.on('connection', socket => {
+        console.log('Client connected')
+    })
     console.log('connected to database')
 })
 .catch(err=> {

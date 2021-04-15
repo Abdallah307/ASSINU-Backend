@@ -6,6 +6,9 @@ const postSchema = new Schema({
         type: Schema.Types.String,
         required: true,
     },
+    imageUrl: {
+        type: Schema.Types.String,
+    },
     groupId: {
         type: Schema.Types.ObjectId,
     },
@@ -15,7 +18,7 @@ const postSchema = new Schema({
        
     },
     likes: {
-        types: Schema.Types.Array
+        type: Schema.Types.Array
     },
     comments: [
         {

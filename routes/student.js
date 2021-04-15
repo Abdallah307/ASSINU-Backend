@@ -14,6 +14,8 @@ router.post('/createpost', studentController.createPost)
 
 router.get('/group/posts/:groupId', studentController.getGroupPosts)
 
+router.post('/group/members', studentController.getGroupMembersInfo)
+
 router.put('/group/posts/comment/createcomment', studentController.createComment)
 
 router.get('/group/posts/comments/:postId', studentController.getPostComments)
@@ -53,5 +55,11 @@ router.get('/sharingcenter/myitems/:userId', studentController.fetchUserItems)
 
 router.post('/sharingcenter/public/shareitem', studentController.postPublicShareditem)
 router.post('/sharingcenter/department/shareitem', studentController.postDepartmentShareditem)
+
+router.post('/group/polls/createpoll', studentController.postCreateGroupPoll)
+router.get('/group/polls/:groupId', studentController.getGroupPolls)
+
+router.post('/group/polls/vote', studentController.postVotePoll)
+
 
 module.exports = router 

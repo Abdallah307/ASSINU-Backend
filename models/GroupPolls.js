@@ -13,22 +13,23 @@ const pollSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref:'Student'
     },
-    choices: {
-        types: Schema.Types.Array
-    },
-    comments: [
+    choices:[
         {
-            content: Schema.Types.String,
-            ownerId: {
-                type: Schema.Types.ObjectId,
-                ref:"Student"
-            },
-            createdAt: Schema.Types.Date,
+            numberOfVotes:Schema.Types.Number,
+            choiceContent:Schema.Types.String 
         }
     ],
-    
+    voters:[
+        {
+            voterId: {
+                type:Schema.Types.ObjectId,
+                ref:'Student'
+            },
+            choiceId:Schema.Types.ObjectId
+        }
+    ],
 }, {
     timestamps:true
 })
 
-module.exports = mongoose.model('Post', pollSchema)
+module.exports = mongoose.model('GroupPoll', pollSchema)
