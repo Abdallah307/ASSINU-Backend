@@ -21,7 +21,7 @@ exports.getStudentInfo = async (req, res, next) => {
         //         message:'Please sign in first'
         //     })
         // }
-        const student = await Student.findById(req.userId)
+        const student = await Student.findById('60451e36dcceee7e311cc508')
 
         if (!student) {
             return res.status(404).json({
@@ -100,7 +100,7 @@ exports.createPost = async (req, res, next) => {
         const groupId = req.body.groupId
         const content = req.body.content
         const ownerId = req.body.ownerId
-        const image = req.file 
+        const image = req.file
 
         let post;
 
@@ -113,18 +113,18 @@ exports.createPost = async (req, res, next) => {
         }
         else {
             post = new Post({
-                content:content,
-                groupId:groupId,
-                ownerId:ownerId,
-                imageUrl:image.path
+                content: content,
+                groupId: groupId,
+                ownerId: ownerId,
+                imageUrl: image.path
             })
         }
 
         const result = await post.save()
 
         const resul = await Post.findById(result._id)
-        .populate('ownerId', 'name imageUrl')
-        .exec()
+            .populate('ownerId', 'name imageUrl')
+            .exec()
 
         res.status(201).json({
             message: "Created Post Successfully",
@@ -242,6 +242,7 @@ exports.getGroupMessages = async (req, res, next) => {
         const groupId = req.params.groupId
 
         const messages = await GroupMessage.find({ groupId: groupId })
+            .sort({ _id: 1 })
 
         if (!messages) {
             return res.json(404).json({
@@ -282,7 +283,7 @@ exports.createMessage = async (req, res, next) => {
         })
 
         res.status(201).json({
-            message: message 
+            message: message
         })
     }
     catch (err) {
@@ -410,185 +411,116 @@ exports.getQuestionAnswers = async (req, res, next) => {
 exports.upvoteAnswer = async (req, res, next) => {
 
     try {
-        const questionId = req.params.questionId
         const answerId = req.body.answerId
         const upvoterId = req.body.upvoterId
 
-        const question = await Question.findById(questionId)
+        const answer = await Answer.findById(answerId)
 
-        if (!question) {
+        if (!answer) {
             return res.status(404).json({
-                message: "Question not found in the database"
+                message:'answer not found'
+            })
+        }
+        const upvoterIndex = checkExistingUpvoter(answer.upvoters, upvoterId)
+
+        if (upvoterIndex > -1) {
+            const updatedUpvoters = removeUpvoter(answer.upvoters,upvoterId)
+            answer.upvoters = [...updatedUpvoters]
+            answer.numberOfUpvotes -= 1
+            await answer.save()
+
+            return res.status(201).json({
+                message:'removed existing upvoter',
+                answer:answer
             })
         }
 
-        const answerIndex = question.answers.findIndex(answer => {
-            return answer._id.toString() === answerId.toString()
-        })
 
-        if (answerIndex > -1) {
-            const upvoters = question.answers[answerIndex].upvoters
-            const downvoters = question.answers[answerIndex].downvoters
-            const upvoterIndex = checkExistingUpvoter(upvoters, upvoterId)
+        const existingDownVoterIndex = checkExistingDownVoter(answer.downvoters, upvoterId)
 
-            if (upvoterIndex > -1) {
-                const updatedUpvoters = removeUpvoter(upvoters, upvoterIndex)
-                question.answers[answerIndex].upvoters = [...updatedUpvoters]
-                question.answers[answerIndex].votes -= 1
-                await question.save()
+        if (existingDownVoterIndex > -1) {
+            const updatedDownVoters = removeDownVoter(answer.downvoters,upvoterId)
+            answer.downvoters = [...updatedDownVoters]
+            answer.numberOfDownvotes -= 1
+            answer.upvoters = [...answer.upvoters, upvoterId]
+            answer.numberOfUpvotes += 1
+            await answer.save()
 
-                return res.status(201).json({
-                    message: "removed upvoter",
-                    upvoters: question.answers[answerIndex].upvoters,
-                    downvoters: question.answers[answerIndex].downvoters,
-                    answerIndex: answerIndex,
-                    votes: question.answers[answerIndex].votes
-                })
-            }
-            else {
-                const downvoterIndex = checkExistingDownVoter(downvoters, upvoterId)
-
-                if (downvoterIndex > -1) {
-                    const updatedDownvoters = removeDownVoter(downvoters, downvoterIndex)
-                    question.answers[answerIndex].downvoters = [...updatedDownvoters]
-
-                    const updatedUpvoters = addUpvoter(upvoters, upvoterId)
-
-                    question.answers[answerIndex].upvoters = [...updatedUpvoters]
-
-                    question.answers[answerIndex].votes += 2
-
-                    await question.save()
-
-                    return res.status(201).json({
-                        message: 'removed downvoter and added upvoter',
-                        upvoters: question.answers[answerIndex].upvoters,
-                        downvoters: question.answers[answerIndex].downvoters,
-                        answerIndex: answerIndex,
-                        votes: question.answers[answerIndex].votes
-                    })
-                }
-                else {
-                    question.answers[answerIndex].upvoters = [...upvoters, upvoterId]
-                    question.answers[answerIndex].votes += 1
-                    await question.save()
-
-                    return res.status(201).json({
-                        message: "added upvoter",
-                        upvoters: question.answers[answerIndex].upvoters,
-                        downvoters: question.answers[answerIndex].downvoters,
-                        answerIndex: answerIndex,
-                        votes: question.answers[answerIndex].votes
-                    })
-                }
-
-
-
-
-
-            }
-
-
+            return res.status(201).json({
+                message:'removed downvoter and added upvoter',
+                answer:answer
+            })
         }
 
+        answer.upvoters = [...answer.upvoters, upvoterId]
+        answer.numberOfUpvotes +=1
+        await answer.save()
 
-
+        return res.status(201).json({
+            message:'added upvoter',
+            answer:answer
+        })
     }
     catch (err) {
         const error = errorCreator(err.message, 500)
         return next(error)
     }
-
 }
 
 exports.downvoteAnswer = async (req, res, next) => {
 
 
     try {
-        const questionId = req.params.questionId
         const answerId = req.body.answerId
         const downvoterId = req.body.downvoterId
 
-        const question = await Question.findById(questionId)
+        const answer = await Answer.findById(answerId)
 
-        if (!question) {
+        if (!answer) {
             return res.status(404).json({
-                message: "Question not found in the database"
+                message:'answer not found'
             })
         }
 
-        const answerIndex = question.answers.findIndex(answer => {
-            return answer._id.toString() === answerId.toString()
-        })
+        const downvoterIndex = checkExistingDownVoter(answer.downvoters, downvoterId)
 
-        if (answerIndex > -1) {
-            const upvoters = question.answers[answerIndex].upvoters
-            const downvoters = question.answers[answerIndex].downvoters
+        if (downvoterIndex > -1) {
+            const updatedDownvoters = removeDownVoter(answer.downvoters,downvoterId)
+            answer.downvoters = [...updatedDownvoters]
+            answer.numberOfDownvotes -= 1
+            await answer.save()
 
-            const downvoterIndex = checkExistingDownVoter(downvoters, downvoterId)
-
-            if (downvoterIndex > -1) {
-                const updatedDownvoters = removeDownVoter(downvoters, downvoterIndex)
-                question.answers[answerIndex].downvoters = [...updatedDownvoters]
-                question.answers[answerIndex].votes += 1
-                await question.save()
-
-                return res.status(201).json({
-                    message: "removed downvoter",
-                    upvoters: question.answers[answerIndex].upvoters,
-                    downvoters: question.answers[answerIndex].downvoters,
-                    answerIndex: answerIndex,
-                    votes: question.answers[answerIndex].votes
-                })
-            }
-            else {
-                const upvoterIndex = checkExistingUpvoter(upvoters, downvoterId)
-
-                if (upvoterIndex > -1) {
-                    const updatedUpvoters = removeUpvoter(upvoters, upvoterIndex)
-                    question.answers[answerIndex].upvoters = [...updatedUpvoters]
-
-                    const updatedDownvoters = addDownVoter(downvoters, downvoterId)
-
-                    question.answers[answerIndex].downvoters = [...updatedDownvoters]
-
-                    question.answers[answerIndex].votes -= 2
-
-                    await question.save()
-
-                    return res.status(201).json({
-                        message: 'removed upvoter and added downvoter',
-                        upvoters: question.answers[answerIndex].upvoters,
-                        downvoters: question.answers[answerIndex].downvoters,
-                        answerIndex: answerIndex,
-                        votes: question.answers[answerIndex].votes
-                    })
-                }
-                else {
-                    question.answers[answerIndex].downvoters = [...downvoters, downvoterId]
-                    question.answers[answerIndex].votes -= 1
-                    await question.save()
-
-                    return res.status(201).json({
-                        message: "added downvoter",
-                        upvoters: question.answers[answerIndex].upvoters,
-                        downvoters: question.answers[answerIndex].downvoters,
-                        answerIndex: answerIndex,
-                        votes: question.answers[answerIndex].votes
-                    })
-                }
-
-
-
-
-
-            }
-
-
+            return res.status(201).json({
+                message:'removed existing downvoter',
+                answer:answer
+            })
         }
 
+        const existingUpvoterIndex = checkExistingUpvoter(answer.upvoters, downvoterId)
 
+        if (existingUpvoterIndex > -1) {
+            const updatedUpVoters = removeUpvoter(answer.upvoters,downvoterId)
+            answer.upvoters = [...updatedUpVoters]
+            answer.numberOfUpvotes -= 1
+            answer.downvoters = [...answer.downvoters, downvoterId]
+            answer.numberOfDownvotes += 1
+            await answer.save()
 
+            return res.status(201).json({
+                message:'removed upvoter and added downvoter',
+                answer:answer
+            })
+        }
+
+        answer.downvoters = [...answer.downvoters, downvoterId]
+        answer.numberOfDownvotes +=1
+        await answer.save()
+
+        return res.status(201).json({
+            message:'added downvoter',
+            answer:answer
+        })
+      
     }
     catch (err) {
         const error = errorCreator(err.message, 500)
@@ -596,15 +528,43 @@ exports.downvoteAnswer = async (req, res, next) => {
     }
 }
 
+const checkExistingUpvoter = (upvoters, upvoterId) => {
+    const upvoterIndex = upvoters.findIndex(upvoter => upvoter == upvoterId)
+    return upvoterIndex
+}
+
+const removeUpvoter = (upvoters, upvoterIndex) => {
+    const updatedUpvoters = upvoters.splice(upvoterIndex, 0)
+    return updatedUpvoters
+}
+
+const checkExistingDownVoter = (downvoters, downvoterId) => {
+    const downvoterIndex = downvoters.findIndex(downvoter => downvoter == downvoterId)
+    return downvoterIndex
+}
+
+const removeDownVoter = (downvoters, downvoterIndex) => {
+    const updatedDownvoters = downvoters.splice(downvoterIndex, 0)
+    return updatedDownvoters
+}
+
+const addDownVoter = (downvoters, downvoterId) => {
+    const updatedDownvoters = [...downvoters, downvoterId]
+    return updatedDownvoters;
+}
+
+const addUpvoter = (upvoters, upvoterId) => {
+    const updatedUpvoters = [...upvoters, upvoterId]
+    return updatedUpvoters;
+}
+
 exports.postAddAnswerComment = async (req, res, next) => {
-    // const questionId = req.body.questionId
     const answerId = req.body.answerId
     const commentOwnerId = req.body.commentOwnerId
     const content = req.body.content
 
     try {
 
-        //const answer = await Answer.findById(answerId)
 
         const newComment = new AnswerComment({
             answerId: answerId,
@@ -639,8 +599,6 @@ exports.getAnswerComments = async (req, res, next) => {
         const answerId = req.params.answerId
 
 
-        // const answer = await Answer.findById(answerId)
-        // .populate('comments.ownerId', 'name imageUrl')
 
         const comments = await AnswerComment.find({ answerId: answerId })
             .populate('ownerId', 'name imageUrl')
@@ -1070,32 +1028,4 @@ const unFollowQuestion = (question, followerId) => {
     return updatedFollwers
 }
 
-const checkExistingUpvoter = (upvoters, upvoterId) => {
-    const upvoterIndex = upvoters.findIndex(upvoter => upvoter == upvoterId)
-    return upvoterIndex
-}
 
-const removeUpvoter = (upvoters, upvoterIndex) => {
-    const updatedUpvoters = upvoters.splice(upvoterIndex, 0)
-    return updatedUpvoters
-}
-
-const checkExistingDownVoter = (downvoters, downvoterId) => {
-    const downvoterIndex = downvoters.findIndex(downvoter => downvoter == downvoterId)
-    return downvoterIndex
-}
-
-const removeDownVoter = (downvoters, downvoterIndex) => {
-    const updatedDownvoters = downvoters.splice(downvoterIndex, 0)
-    return updatedDownvoters
-}
-
-const addDownVoter = (downvoters, downvoterId) => {
-    const updatedDownvoters = [...downvoters, downvoterId]
-    return updatedDownvoters;
-}
-
-const addUpvoter = (upvoters, upvoterId) => {
-    const updatedUpvoters = [...upvoters, upvoterId]
-    return updatedUpvoters;
-}

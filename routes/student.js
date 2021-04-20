@@ -38,8 +38,8 @@ router.post('/university/questions/answer/addcomment', studentController.postAdd
 router.get('/university/questions/answers/comments/:commentId/replays', studentController.getCommentReplays)
 router.post('/university/questions/answers/comments/:commentId/replays/addreplay', studentController.addCommentReplay)
 
-router.put('/university/questions/answer/upvote/:questionId', studentController.upvoteAnswer)
-router.put('/university/questions/answer/downvote/:questionId', studentController.downvoteAnswer)
+router.put('/university/questions/answer/upvote', studentController.upvoteAnswer)
+router.put('/university/questions/answer/downvote', studentController.downvoteAnswer)
 
 router.put('/university/questions/follow/:questionId', studentController.switchQuestionFollowingStatus)
 
