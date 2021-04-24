@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const studentController = require('../controllers/student')
-
+const AskQuestion = require('../models/askQuestion')
 
 const isAuth = require('../middleware/is-auth')
 
@@ -67,5 +67,107 @@ router.get('/messages/chats/:sender', studentController.getAllChats)
 
 router.post('/messages', studentController.getPersonalMessages)
 
+router.post('/ask', async (req,res,next) => {
+    const {question, sender, receiver} = req.body 
+
+    const newQuestion = new AskQuestion({
+        question:question,
+        sender:sender,
+        receiver:receiver
+    })
+
+    await newQuestion.save()
+
+    return res.status(201).json({
+        q:newQuestion
+    })
+})
+
+router.get('/ask/receivedquestions/:userId', async (req,res,next) => {
+    const userId = req.params.userId 
+    const questions = await AskQuestion.find({receiver:userId, isAnswered:false})
+
+    if (!questions) {
+
+        return res.status(404).json({
+            message:'no questions found'
+        })
+    }
+
+    return res.status(200).json({
+        questions:questions
+    })
+})
+
+router.get('/ask/askedquestions/:userId', async (req,res,next) => {
+    const userId = req.params.userId 
+    const questions = await AskQuestion.find({sender:userId})
+    .populate('receiver', 'name')
+    .exec()
+
+    if (!questions) {
+
+        return res.status(404).json({
+            message:'no questions found'
+        })
+    }
+
+    return res.status(200).json({
+        questions:questions
+    })
+})
+
+
+router.get('/ask/answered/:userId', async (req,res,next) => {
+    const userId = req.params.userId 
+    const questions = await AskQuestion.find({receiver:userId, isAnswered:true})
+
+    if (!questions) {
+
+        return res.status(404).json({
+            message:'no questions found'
+        })
+    }
+
+    return res.status(200).json({
+        questions:questions
+    })
+})
+
+router.post('/ask/answerquestion', async (req,res,next) => {
+    try {
+        const questionId = req.body.questionId
+        const answer = req.body.answer 
+
+        const question = await AskQuestion.findById(questionId)
+
+        question.answer = answer
+        question.isAnswered = true
+
+        await question.save()
+
+        return res.status(201).json({
+            question:question
+        })
+    }
+    catch(err) {
+        return next(err)
+    }
+})
+
+router.get('/ask/question/answer/:questionId', async (req,res,next) => {
+    try {
+        const questionId = req.params.questionId 
+        const questionAnswer = await AskQuestion.findById(questionId)
+        .select('answer')
+
+        return res.status(200).json({
+            answer:questionAnswer
+        })
+    }
+    catch(err) {
+        return next(err)
+    }
+})
 
 module.exports = router 
