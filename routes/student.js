@@ -61,5 +61,11 @@ router.get('/group/polls/:groupId', studentController.getGroupPolls)
 
 router.post('/group/polls/vote', studentController.postVotePoll)
 
+router.post('/messages/createmessage', studentController.createPersonalMessage)
+
+router.get('/messages/chats/:sender', studentController.getAllChats)
+
+router.post('/messages', studentController.getPersonalMessages)
+
 
 module.exports = router 

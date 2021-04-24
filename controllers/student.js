@@ -11,6 +11,7 @@ const AnswerComment = require('../models/answerComment')
 const Replay = require('../models/replay')
 const GroupPoll = require('../models/GroupPolls')
 const mongoose = require('mongoose')
+const Message = require('../models/Message')
 
 exports.getStudentInfo = async (req, res, next) => {
 
@@ -243,6 +244,8 @@ exports.getGroupMessages = async (req, res, next) => {
 
         const messages = await GroupMessage.find({ groupId: groupId })
             .sort({ _id: 1 })
+            .populate('ownerId', 'name imageUrl')
+            .exec()
 
         if (!messages) {
             return res.json(404).json({
@@ -276,6 +279,8 @@ exports.createMessage = async (req, res, next) => {
         const resul = await newMessage.save()
 
         const message = await GroupMessage.findById(resul._id)
+            .populate('ownerId', 'name imageUrl')
+            .exec()
 
         io.getIO().emit('message', {
             action: 'addmessage',
@@ -418,20 +423,20 @@ exports.upvoteAnswer = async (req, res, next) => {
 
         if (!answer) {
             return res.status(404).json({
-                message:'answer not found'
+                message: 'answer not found'
             })
         }
         const upvoterIndex = checkExistingUpvoter(answer.upvoters, upvoterId)
 
         if (upvoterIndex > -1) {
-            const updatedUpvoters = removeUpvoter(answer.upvoters,upvoterId)
+            const updatedUpvoters = removeUpvoter(answer.upvoters, upvoterId)
             answer.upvoters = [...updatedUpvoters]
             answer.numberOfUpvotes -= 1
             await answer.save()
 
             return res.status(201).json({
-                message:'removed existing upvoter',
-                answer:answer
+                message: 'removed existing upvoter',
+                answer: answer
             })
         }
 
@@ -439,7 +444,7 @@ exports.upvoteAnswer = async (req, res, next) => {
         const existingDownVoterIndex = checkExistingDownVoter(answer.downvoters, upvoterId)
 
         if (existingDownVoterIndex > -1) {
-            const updatedDownVoters = removeDownVoter(answer.downvoters,upvoterId)
+            const updatedDownVoters = removeDownVoter(answer.downvoters, upvoterId)
             answer.downvoters = [...updatedDownVoters]
             answer.numberOfDownvotes -= 1
             answer.upvoters = [...answer.upvoters, upvoterId]
@@ -447,18 +452,18 @@ exports.upvoteAnswer = async (req, res, next) => {
             await answer.save()
 
             return res.status(201).json({
-                message:'removed downvoter and added upvoter',
-                answer:answer
+                message: 'removed downvoter and added upvoter',
+                answer: answer
             })
         }
 
         answer.upvoters = [...answer.upvoters, upvoterId]
-        answer.numberOfUpvotes +=1
+        answer.numberOfUpvotes += 1
         await answer.save()
 
         return res.status(201).json({
-            message:'added upvoter',
-            answer:answer
+            message: 'added upvoter',
+            answer: answer
         })
     }
     catch (err) {
@@ -478,28 +483,28 @@ exports.downvoteAnswer = async (req, res, next) => {
 
         if (!answer) {
             return res.status(404).json({
-                message:'answer not found'
+                message: 'answer not found'
             })
         }
 
         const downvoterIndex = checkExistingDownVoter(answer.downvoters, downvoterId)
 
         if (downvoterIndex > -1) {
-            const updatedDownvoters = removeDownVoter(answer.downvoters,downvoterId)
+            const updatedDownvoters = removeDownVoter(answer.downvoters, downvoterId)
             answer.downvoters = [...updatedDownvoters]
             answer.numberOfDownvotes -= 1
             await answer.save()
 
             return res.status(201).json({
-                message:'removed existing downvoter',
-                answer:answer
+                message: 'removed existing downvoter',
+                answer: answer
             })
         }
 
         const existingUpvoterIndex = checkExistingUpvoter(answer.upvoters, downvoterId)
 
         if (existingUpvoterIndex > -1) {
-            const updatedUpVoters = removeUpvoter(answer.upvoters,downvoterId)
+            const updatedUpVoters = removeUpvoter(answer.upvoters, downvoterId)
             answer.upvoters = [...updatedUpVoters]
             answer.numberOfUpvotes -= 1
             answer.downvoters = [...answer.downvoters, downvoterId]
@@ -507,20 +512,20 @@ exports.downvoteAnswer = async (req, res, next) => {
             await answer.save()
 
             return res.status(201).json({
-                message:'removed upvoter and added downvoter',
-                answer:answer
+                message: 'removed upvoter and added downvoter',
+                answer: answer
             })
         }
 
         answer.downvoters = [...answer.downvoters, downvoterId]
-        answer.numberOfDownvotes +=1
+        answer.numberOfDownvotes += 1
         await answer.save()
 
         return res.status(201).json({
-            message:'added downvoter',
-            answer:answer
+            message: 'added downvoter',
+            answer: answer
         })
-      
+
     }
     catch (err) {
         const error = errorCreator(err.message, 500)
@@ -994,6 +999,97 @@ exports.postVotePoll = async (req, res, next) => {
         return next(error)
     }
 }
+
+exports.createPersonalMessage = async (req, res, next) => {
+    try {
+        const { sender, receiver, content } = req.body
+        const newMessage = new Message({
+            content: content,
+            sender: sender,
+            receiver: receiver,
+        })
+
+        const resul = await newMessage.save()
+
+        const msg = await Message.findOne({_id:resul._id})
+        .populate('sender', 'imageUrl name')
+        .populate('receiver', 'imageUrl name')
+        .exec()
+
+        io.getIO().emit('messageP', {
+            action:'addmessageP',
+            message:msg 
+        })
+
+        return res.status(201).json({
+            message: msg 
+        })
+    }
+    catch (err) {
+        const error = errorCreator(err.message, 500)
+        return next(error)
+    }
+}
+
+exports.getAllChats = async (req, res, next) => {
+    try {
+        const sender = req.params.sender
+
+        const users = new Set()
+
+        const chats = await Message.find({ sender: sender })
+            .populate('receiver', 'name imageUrl')
+            .exec()
+
+        const chats2 = await Message.find({ receiver: sender })
+            .populate('sender', 'name imageUrl')
+            .exec()
+
+        chats.forEach(chat => {
+            users.add(chat.receiver._id.toString())
+        })
+
+        chats2.forEach(chat => {
+            users.add(chat.sender._id.toString())
+        })
+
+
+
+        let chatUsers = [];
+
+        for (let item of users) {
+            chatUsers.push(await Student.findOne({ _id: item }).select('name imageUrl'))
+        }
+
+        return res.status(200).json({
+            chatUsers: chatUsers
+        })
+    }
+    catch (err) {
+        const error = errorCreator(err.message, 500)
+        return next(error)
+    }
+}
+
+exports.getPersonalMessages = async (req, res, next) => {
+    try {
+        const {sender, receiver} = req.body
+
+        const mss = await Message
+        .find({$or:[{sender:sender, receiver:receiver},{sender:receiver, receiver:sender}]})
+        .sort({_id:1})
+        .populate('receiver', 'name imageUrl')
+        .populate('sender', 'name imageUrl')
+        .exec()
+
+        return res.status(200).json({
+            messages:mss 
+        })
+    }
+    catch(err) {}
+}
+
+
 
 
 

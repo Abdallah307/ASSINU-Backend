@@ -8,6 +8,7 @@ const path = require('path')
 const mongoose = require('mongoose')
 const DATABASE_URI = require('./configs/mongodb')
 const cors = require('cors')
+const {sIO} = require('./middleware/socketMiddleware')
 
 const fileStorage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -61,23 +62,7 @@ mongoose.connect(DATABASE_URI)
 .then(result=> {
     const server = app.listen(4200)
     const io = require('./socket').init(server)
-    io.on('connection', socket => {
-        socket.on('typingEvent', data => {
-                if (data.length !== 0) {
-                    io.emit('ttt', {
-                        groupId:"604574e9373818f5cc5f41f2",
-                        username:'Abdallah Dereia'
-                    })
-                }
-                else {
-                    io.emit('stoppedTyping', {
-                        groupId:"604574e9373818f5cc5f41f2"
-                    })
-                }
-                
-        })
-        console.log('Client connected')
-    })
+    sIO(io)
     console.log('connected to database')
 })
 .catch(err=> {
