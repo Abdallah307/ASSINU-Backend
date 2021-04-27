@@ -59,6 +59,8 @@ router.post('/sharingcenter/department/shareitem', studentController.postDepartm
 router.post('/group/polls/createpoll', studentController.postCreateGroupPoll)
 router.get('/group/polls/:groupId', studentController.getGroupPolls)
 
+router.get('/group/postspolls/:groupId', studentController.getGroupPostsAndPolls)
+
 router.post('/group/polls/vote', studentController.postVotePoll)
 
 router.post('/messages/createmessage', studentController.createPersonalMessage)
@@ -102,8 +104,6 @@ router.get('/ask/receivedquestions/:userId', async (req,res,next) => {
 router.get('/ask/askedquestions/:userId', async (req,res,next) => {
     const userId = req.params.userId 
     const questions = await AskQuestion.find({sender:userId})
-    .populate('receiver', 'name')
-    .exec()
 
     if (!questions) {
 

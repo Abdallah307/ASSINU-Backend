@@ -11,7 +11,8 @@ const AnswerComment = require('../models/answerComment')
 const Replay = require('../models/replay')
 const GroupPoll = require('../models/GroupPolls')
 const mongoose = require('mongoose')
-const Message = require('../models/Message')
+const Message = require('../models/Message');
+const { ReplSet } = require('mongodb');
 
 exports.getStudentInfo = async (req, res, next) => {
 
@@ -903,20 +904,58 @@ exports.getGroupPolls = async (req, res, next) => {
         const polls = await GroupPoll.find({ groupId: groupId })
             .populate('ownerId', 'name imageUrl')
             .exec()
+
         const posts = await Post.find({ groupId: groupId })
+        .populate('ownerId', 'name imageUrl')
+        .exec()
 
-        const data = posts.concat(polls)
-
-        const modi =
-            console.log(modi)
-        if (!polls) {
+        const data = posts.concat(polls).sort((a, b) => {
+            return b.createdAt - a.createdAt
+        })
+        
+        if (!polls && !posts) {
             return res.status(404).json({
                 message: "no polls found"
             })
         }
 
         return res.status(200).json({
-            data: modi
+            data: data
+        })
+
+
+    }
+    catch (err) {
+        const error = errorCreator(err.message, 500)
+        return next(error)
+    }
+}
+
+exports.getGroupPostsAndPolls = async (req, res , next) => {
+    try {
+        const groupId = req.params.groupId
+
+        const polls = await GroupPoll.find({ groupId: groupId })
+            .populate('ownerId', 'name imageUrl')
+            .populate('voters.voterId', 'name imageUrl')
+            .exec()
+
+        const posts = await Post.find({ groupId: groupId })
+        .populate('ownerId', 'name imageUrl')
+        .exec()
+
+        const data = posts.concat(polls).sort((a, b) => {
+            return b.createdAt - a.createdAt
+        })
+        
+        if (!polls && !posts) {
+            return res.status(404).json({
+                message: "no polls found"
+            })
+        }
+
+        return res.status(200).json({
+            posts: data
         })
 
 
@@ -983,8 +1022,9 @@ exports.postVotePoll = async (req, res, next) => {
 
 
         poll.choices[choiceIndex].numberOfVotes += 1
-        poll.choices[choiceIndex].voters = [...poll.choices[choiceIndex].voters, {
-            voterId: voterId
+        poll.voters = [...poll.voters, {
+            voterId: voterId,
+            choiceId:choiceId
         }]
 
         await poll.save()
@@ -995,10 +1035,18 @@ exports.postVotePoll = async (req, res, next) => {
         })
     }
     catch (err) {
+        console.log(err)
         const error = errorCreator(err.message, 500)
         return next(error)
     }
 }
+
+// const isAlreadyVoted = async (voterId) => {
+//     const voter = await GroupPoll.findOne({'voters.voterId':voterId})
+//     if (!voter) 
+//         return false 
+//     return true 
+// }
 
 exports.createPersonalMessage = async (req, res, next) => {
     try {
@@ -1011,18 +1059,18 @@ exports.createPersonalMessage = async (req, res, next) => {
 
         const resul = await newMessage.save()
 
-        const msg = await Message.findOne({_id:resul._id})
-        .populate('sender', 'imageUrl name')
-        .populate('receiver', 'imageUrl name')
-        .exec()
+        const msg = await Message.findOne({ _id: resul._id })
+            .populate('sender', 'imageUrl name')
+            .populate('receiver', 'imageUrl name')
+            .exec()
 
         io.getIO().emit('messageP', {
-            action:'addmessageP',
-            message:msg 
+            action: 'addmessageP',
+            message: msg
         })
 
         return res.status(201).json({
-            message: msg 
+            message: msg
         })
     }
     catch (err) {
@@ -1037,6 +1085,8 @@ exports.getAllChats = async (req, res, next) => {
 
         const users = new Set()
 
+        const chatss = await Message.find({ $or: [{ sender: sender }, { receiver: sender }] })
+
         const chats = await Message.find({ sender: sender })
             .populate('receiver', 'name imageUrl')
             .exec()
@@ -1045,6 +1095,10 @@ exports.getAllChats = async (req, res, next) => {
             .populate('sender', 'name imageUrl')
             .exec()
 
+        // chatss.forEach(chat => {
+        //     users.add(chat.receiver._id.toString())
+        //     users.add(chat.sender._id.toString())
+        // })
         chats.forEach(chat => {
             users.add(chat.receiver._id.toString())
         })
@@ -1058,8 +1112,16 @@ exports.getAllChats = async (req, res, next) => {
         let chatUsers = [];
 
         for (let item of users) {
-            chatUsers.push(await Student.findOne({ _id: item }).select('name imageUrl'))
-        }
+            //  if (item !== sender) {
+            const lastMessage = await Message.findOne({ $or: [{ sender: sender, receiver: item }, { sender: item, receiver: sender }] })
+                .sort({ _id: -1 }).exec()
+            chatUsers.push({
+                user: await Student.findOne({ _id: item }).select('name imageUrl'),
+                lastMessage: lastMessage.content
+            })
+            //}
+
+        } 
 
         return res.status(200).json({
             chatUsers: chatUsers
@@ -1073,20 +1135,30 @@ exports.getAllChats = async (req, res, next) => {
 
 exports.getPersonalMessages = async (req, res, next) => {
     try {
-        const {sender, receiver} = req.body
+        const { sender, receiver } = req.body
 
         const mss = await Message
-        .find({$or:[{sender:sender, receiver:receiver},{sender:receiver, receiver:sender}]})
-        .sort({_id:1})
-        .populate('receiver', 'name imageUrl')
-        .populate('sender', 'name imageUrl')
-        .exec()
+            .find({ $or: [{ sender: sender, receiver: receiver }, { sender: receiver, receiver: sender }] })
+            .sort({ _id: 1 })
+            .populate('receiver', 'name imageUrl')
+            .populate('sender', 'name imageUrl')
+            .exec()
+
+        if (!mss) {
+            return res.status(404).json({
+                message: 'no previous conversation before'
+            })
+        }
 
         return res.status(200).json({
-            messages:mss 
+            messages: mss
         })
     }
-    catch(err) {}
+    catch (err) {
+        const error = errorCreator(err.message, 500)
+        console.log(error.message)
+        return next(error)
+    }
 }
 
 

@@ -30,6 +30,10 @@ const postSchema = new Schema({
             createdAt: Schema.Types.Date,
         }
     ],
+    type : {
+        type:Schema.Types.String,
+        default:'post'
+    }
     
 }, {
     timestamps:true

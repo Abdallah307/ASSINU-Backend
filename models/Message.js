@@ -13,7 +13,7 @@ const messageSchema = new Schema({
     receiver: {
         type: Schema.Types.ObjectId,
         ref:'Student'
-    }
+    },
     
 }, {
     timestamps:true

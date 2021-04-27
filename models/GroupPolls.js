@@ -28,6 +28,14 @@ const pollSchema = new Schema({
             choiceId:Schema.Types.ObjectId
         }
     ],
+    type: {
+        type:Schema.Types.String,
+        default:'poll'
+    },
+    isMultipleChoice: {
+        type: Schema.Types.Boolean,
+        default:false
+    }
 }, {
     timestamps:true
 })
