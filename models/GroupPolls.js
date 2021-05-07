@@ -11,7 +11,7 @@ const pollSchema = new Schema({
     },
     ownerId: {
         type: Schema.Types.ObjectId,
-        ref:'Student'
+        ref:'User'
     },
     choices:[
         {
@@ -23,7 +23,7 @@ const pollSchema = new Schema({
         {
             voterId: {
                 type:Schema.Types.ObjectId,
-                ref:'Student'
+                ref:'User'
             },
             choiceId:Schema.Types.ObjectId
         }

@@ -8,14 +8,14 @@ const questionSchema = new Schema({
     },
     ownerId: {
         type: Schema.Types.ObjectId,
-        ref:'Student'
+        ref:'User'
        
     },
     followers: [
         {
             followerId: {
                 type: Schema.Types.ObjectId,
-                ref:"Student"
+                ref:"User"
             }
         }
     ],

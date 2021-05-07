@@ -1,17 +1,18 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose
 
-const answerSchema = new Schema({
+const publicGroupAnswerSchema = new Schema({
+    
     content: Schema.Types.String,
 
-    ownerId: {
+    owner: {
         type: Schema.Types.ObjectId,
         ref: "User"
     },
 
-    questionId: {
+    question: {
         type:Schema.Types.ObjectId,
-        ref:'UniversityQuestion'
+        ref:'PublicGroupQuestion'
     },
 
     numberOfUpvotes: {
@@ -37,6 +38,10 @@ const answerSchema = new Schema({
         type: Schema.Types.Array,
         default: []
     },
+    numberOfComments : {
+        type: Schema.Types.Number,
+        default : 0,
+    }
 })
 
-module.exports = mongoose.model('Answer', answerSchema)
+module.exports = mongoose.model('PublicGroupAnswer', publicGroupAnswerSchema)

@@ -1,6 +1,10 @@
 const express = require('express')
 const app = express()
-const studentRouter = require('./routes/student')
+const askRouter = require('./routes/ask')
+const groupRouter = require('./routes/group')
+const sharingCenterRouter = require('./routes/sharingCenter')
+const universityRouter = require('./routes/university')
+const userRouter = require('./routes/user')
 const authRouter = require('./routes/auth')
 const bodyParser = require('body-parser')
 const multer = require('multer')
@@ -9,6 +13,8 @@ const mongoose = require('mongoose')
 const DATABASE_URI = require('./configs/mongodb')
 const cors = require('cors')
 const {sIO} = require('./middleware/socketMiddleware')
+const publicGroupRouter = require('./routes/PublicGroup')
+const departmentGroupRouter = require('./routes/DepartmentGroup')
 
 const fileStorage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -49,7 +55,19 @@ app.use('/images', express.static(path.join(__dirname, 'images')))
 
 
 
-app.use('/student', studentRouter)
+app.use('/ask', askRouter)
+
+app.use('/publicgroup', publicGroupRouter)
+app.use('/departmentgroup', departmentGroupRouter)
+
+app.use('/group', groupRouter)
+
+app.use('/sharingcenter', sharingCenterRouter)
+
+app.use('/university', universityRouter)
+
+app.use('/user', userRouter)
+
 app.use('/auth', authRouter)
 
 app.use((error, req, res, next) => {

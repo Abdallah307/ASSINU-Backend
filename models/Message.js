@@ -8,11 +8,11 @@ const messageSchema = new Schema({
     },
     sender: {
         type:Schema.Types.ObjectId,
-        ref: "Student",
+        ref: "User",
     },
     receiver: {
         type: Schema.Types.ObjectId,
-        ref:'Student'
+        ref:'User'
     },
     
 }, {

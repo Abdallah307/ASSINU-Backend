@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
-const { Schema } = mongoose
+const {Schema} = mongoose
 
-const studentSchema = new Schema({
+const userSchema = new Schema({
     name: {
         type: Schema.Types.String,
         required: true,
@@ -18,20 +18,14 @@ const studentSchema = new Schema({
         type: Schema.Types.String,
         default: ''
     },
-    bio: {
-        type: Schema.Types.String,
-        default: ''
-    },
     token: {
         type: Schema.Types.String,
         default: '',
     },
-    connections:{
-        type:Schema.Types.Array,
-        default:[]
+    userType: {
+        type:Schema.Types.String,
+        required: true
     }
 })
 
-studentSchema.index({ name: 'text' })
-
-module.exports = mongoose.model('Student', studentSchema)
+module.exports = mongoose.model('User', userSchema)

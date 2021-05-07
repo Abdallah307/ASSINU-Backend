@@ -12,11 +12,11 @@ const askQuestionSchema = new Schema({
     },
     sender: {
         type:Schema.Types.ObjectId,
-        ref:'Student'
+        ref:'User'
     },
     receiver: {
         type:Schema.Types.ObjectId,
-        ref:'Student'
+        ref:'User'
     },
     isAnswered:{
         type:Schema.Types.Boolean,

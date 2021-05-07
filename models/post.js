@@ -14,8 +14,7 @@ const postSchema = new Schema({
     },
     ownerId: {
         type: Schema.Types.ObjectId,
-        ref:'Student'
-       
+        ref:'User'
     },
     likes: {
         type: Schema.Types.Array
@@ -25,7 +24,7 @@ const postSchema = new Schema({
             content: Schema.Types.String,
             ownerId: {
                 type: Schema.Types.ObjectId,
-                ref:"Student"
+                ref:"User"
             },
             createdAt: Schema.Types.Date,
         }

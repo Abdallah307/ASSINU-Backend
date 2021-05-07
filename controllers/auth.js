@@ -1,44 +1,61 @@
-const Student = require('../models/student')
+const User = require('../models/User')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const errorCreator = require('../errorCreator')
-const mongodb = require('mongodb')
+const axios = require('axios')
+
 exports.signUp = async (req, res, next) => {
-    const name = req.body.name 
-    const email = req.body.email
-    const password = req.body.password
-
-    if (await checkExistingEmail(email)) {
-        return res.status(422).json({
-            message: "Email is Already registerd!"
-        })
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 12)
-
-    const student = new Student({
-        name,
-        email,
-        password:hashedPassword,
-    })
 
     try {
-        await student.save()
-        return res.status(200).json({
+        
+        const name = req.body.name 
+        const email = req.body.email
+        const password = req.body.password
+        
+        if (await checkExistingEmail(email)) {
+            return res.status(422).json({
+                message: "Email is Already registerd!"
+            })
+        }
+
+        const userType = getUserType(email)
+    
+        const hashedPassword = await bcrypt.hash(password, 12)
+    
+        const user = new User({
+            name,
+            email,
+            password:hashedPassword,
+            userType:userType
+            
+        })
+
+        await user.save()
+        return res.status(201).json({
             message: 'Signed up successfully',
         })
+
     }
     catch(err) {
         const error = errorCreator("Server error please try again!", 500)
+        console.log(err.message)
         return next(error) 
     }
+  
+    
 }
 
 const checkExistingEmail = async (email) => {
-    const student = await Student.findOne({email:email})
-    if (!student)
+    const user = await User.findOne({email:email})
+    if (!user)
         return false 
     return true    
+}
+
+const getUserType = (email) => {
+    const emailDomain = email.split("@")[1]
+    if (emailDomain === 'najah.edu') return 'teacher'
+    else if (emailDomain === 'stu.najah.edu') return 'student'
 }
 
 
@@ -46,16 +63,16 @@ exports.signIn = async (req, res, next) => {
     const email = req.body.email 
     const password = req.body.password
 
-    const student = await Student.findOne({email:email})
+    const user = await User.findOne({email:email})
 
-    if (!student) {
+    if (!user) {
         return res.status(403).json({
             message:"This email is not registered!!"
         })
     }
-    const studentPassword = student.password
+    const userPassword = user.password
     
-    const isPasswordOk = await bcrypt.compare(password, studentPassword)
+    const isPasswordOk = await bcrypt.compare(password, userPassword)
 
     if (!isPasswordOk) {
         return res.status(403).json({
@@ -63,33 +80,75 @@ exports.signIn = async (req, res, next) => {
         })
     }
     
-    const token = createToken(student)
-    student.token = token 
-    await student.save()
+    const token = createToken(user)
+    user.token = token 
+
+    await user.save()
+
+    
+
+    if (user.userType === 'teacher') {
+        const response = await axios.get(`http://localhost:9002/teacher/info/${user.email}`)
+        if (response.status === 200) {
+            const resul = await axios.get(`http://localhost:9002/student/departmentgroup/${response.data.departmentId._id}`)
+            
+            return res.status(200).json({
+                _id:user._id,
+                name:user.name,
+                email:user.email,
+                imageUrl:user.imageUrl,
+                token:user.token,
+                courses: response.data.courses,
+                departmentName: response.data.departmentId.name,
+                departmentId:response.data.departmentId._id,
+                userType: user.userType,
+                numberOfMembers : resul.data.numberOfMembers
+            })
+        }
+    }
+    else if (user.userType === 'student') {
+        const response = await axios.get(`http://localhost:9002/student/info/${user.email}`)
+        if (response.status === 200) {
+            const resul = await axios.get(`http://localhost:9002/student/departmentgroup/${response.data.departmentId._id}`)
+           
+            return res.status(200).json({
+                _id:user._id,
+                name:user.name,
+                email:user.email,
+                imageUrl:user.imageUrl,
+                token:user.token,
+                courses: response.data.courses,
+                departmentName: response.data.departmentId.name,
+                departmentId:response.data.departmentId._id,
+                userType: user.userType,
+                numberOfMembers: resul.data.numberOfMembers
+            })
+        }
+    }
+
+
     return res.status(200).json({
-        _id:student._id,
-        name:student.name,
-        bio:student.bio,
-        email:student.email,
-        imageUrl:student.imageUrl,
-        token:student.token,
+        _id:user._id,
+        name:user.name,
+        email:user.email,
+        imageUrl:user.imageUrl,
+        token:user.token,
     })
     
 }
 
 exports.signOut = async (req,res, next) => {
     try {
-        const student = await Student.findById(req.userId)
-        if (!student) {
+        const user = await User.findById(req.userId)
+        if (!user) {
             return res.status(404).json({
-                message:'no student'
+                message:'Error No User found'
             })
         }
-        console.log(student)
 
-        student.token = ''
+        user.token = ''
 
-        await student.save()
+        await user.save()
 
         req.userId = null
 
@@ -104,10 +163,10 @@ exports.signOut = async (req,res, next) => {
 }
 
 
-const createToken = (student) => {
+const createToken = (user) => {
     const token = jwt.sign({
-        userId: student._id.toString(),
-        email:student.email 
+        userId: user._id.toString(),
+        email:user.email 
     }, "iamabdallahdereiaiamacomputerengineer")
 
     return token 

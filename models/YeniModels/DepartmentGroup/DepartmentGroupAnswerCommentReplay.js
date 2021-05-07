@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose
 
 const replaySchema = new Schema({
-    ownerId: {
+    owner: {
         type:Schema.Types.ObjectId,
         ref:'User'
     },
@@ -10,10 +10,10 @@ const replaySchema = new Schema({
         type:Schema.Types.String,
         required:true
     },
-    commentId: {
+    comment: {
         type:Schema.Types.ObjectId,
-        ref:'AnswerComment'
+        ref:'DepartmentGroupAnswerComment'
     }
 })
 
-module.exports = mongoose.model('Replay', replaySchema)
+module.exports = mongoose.model('DepartmentGroupAnswerCommentReplay', replaySchema)

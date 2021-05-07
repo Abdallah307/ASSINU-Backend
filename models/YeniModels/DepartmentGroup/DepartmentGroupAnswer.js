@@ -1,17 +1,18 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose
 
-const answerSchema = new Schema({
+const departmentGroupAnswerSchema = new Schema({
+    
     content: Schema.Types.String,
 
-    ownerId: {
+    owner: {
         type: Schema.Types.ObjectId,
         ref: "User"
     },
 
-    questionId: {
+    question: {
         type:Schema.Types.ObjectId,
-        ref:'UniversityQuestion'
+        ref:'DepartmentGroupQuestion'
     },
 
     numberOfUpvotes: {
@@ -29,14 +30,18 @@ const answerSchema = new Schema({
     bestAnswer: Schema.Types.Boolean,
 
     upvoters: {
-        type: Schema.Types.Array,
-        default: []
+        type : Schema.Types.Array,
+        default : []
     },
 
     downvoters: {
-        type: Schema.Types.Array,
-        default: []
+        type : Schema.Types.Array,
+        default : []
     },
+    numberOfComments : {
+        type: Schema.Types.Number,
+        default : 0,
+    }
 })
 
-module.exports = mongoose.model('Answer', answerSchema)
+module.exports = mongoose.model('DepartmentGroupAnswer', departmentGroupAnswerSchema)

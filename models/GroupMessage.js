@@ -8,7 +8,7 @@ const groupMessageSchema = new Schema({
     },
     ownerId: {
         type:Schema.Types.ObjectId,
-        ref: "Student",
+        ref: "User",
     },
     groupId: {
         type: Schema.Types.ObjectId,
