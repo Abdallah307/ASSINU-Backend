@@ -9,15 +9,11 @@ const PublicGroupAnswerComment = require("../models/YeniModels/PublicGroup/Publi
 const PublicGroupAnswerCommentReplay = require("../models/YeniModels/PublicGroup/PublicGroupAnswerCommentReplay");
 
 const getPosts = async () => {
-  return PublicGroupPost.find()
-    .populate("owner", "name imageUrl")
-    .exec();
+  return PublicGroupPost.find().populate("owner", "name imageUrl").exec();
 };
 
 const getQuestions = async () => {
-  return PublicGroupQuestion.find()
-    .populate("owner", "name imageUrl")
-    .exec();
+  return PublicGroupQuestion.find().populate("owner", "name imageUrl").exec();
 };
 
 const isNullResult = (result) => {
@@ -27,6 +23,8 @@ const isNullResult = (result) => {
 
 exports.getPostsAndQuestions = async (req, res, next) => {
   try {
+   
+
     const posts = await getPosts();
 
     const questions = await getQuestions();
@@ -43,22 +41,19 @@ exports.getPostsAndQuestions = async (req, res, next) => {
       });
 
       return res.status(200).json({
-        posts: posts,
-        questions : questions 
+        data : data
       });
     }
 
     if (!isNullResult(posts)) {
       return res.status(200).json({
-        posts: posts,
-        questions : []
+        data : data
       });
     }
 
     if (!isNullResult(questions)) {
       return res.status(200).json({
-        posts : [],
-        questions: questions,
+        data : data
       });
     }
   } catch (err) {
@@ -69,12 +64,22 @@ exports.getPostsAndQuestions = async (req, res, next) => {
 
 exports.createQuestion = async (req, res, next) => {
   try {
-    const { content, owner } = req.body;
-
-    const question = new PublicGroupQuestion({
-      content: content,
-      owner: owner,
-    });
+    const { content } = req.body;
+    const image = req.file
+    let question;
+    if (!image) {
+      question = new PublicGroupQuestion({
+        content: content,
+        owner: req.userId,
+      });
+    }
+    else {
+      question = new PublicGroupQuestion({
+        content: content,
+        owner: req.userId,
+        imageUrl : image.path 
+      });
+    }
 
     const result = await question.save();
 
@@ -83,7 +88,7 @@ exports.createQuestion = async (req, res, next) => {
       .exec();
 
     return res.status(201).json({
-      question: createdQuestion,
+      data: createdQuestion,
     });
   } catch (err) {
     return next(errorCreator(err.message, 500));
@@ -92,11 +97,11 @@ exports.createQuestion = async (req, res, next) => {
 
 exports.addAnswer = async (req, res, next) => {
   try {
-    const { content, owner, question } = req.body;
+    const { content, question } = req.body;
 
     const answer = new PublicGroupAnswer({
       content: content,
-      owner: owner,
+      owner: req.userId,
       question: question,
     });
 
@@ -121,8 +126,11 @@ exports.addAnswer = async (req, res, next) => {
 
 exports.getQuestionAnswers = async (req, res, next) => {
   try {
-    const { question } = req.body;
-    const answers = await PublicGroupAnswer.find({ question: question });
+    const { questionId } = req.params;
+    const answers = await PublicGroupAnswer.find({ question: questionId })
+    .sort({_id : -1})
+    .populate('owner','name imageUrl')
+    .exec()
 
     if (isNullResult(answers)) {
       return res.status(404).json({
@@ -140,10 +148,12 @@ exports.getQuestionAnswers = async (req, res, next) => {
 
 exports.getAnswerComments = async (req, res, next) => {
   try {
-    const { answer } = req.body;
+    const { answerId } = req.params;
     const comments = await PublicGroupAnswerComment.find({
-      answer: answer,
-    });
+      answer: answerId,
+    })
+    .populate('owner', 'name imageUrl')
+    .exec()
 
     if (isNullResult(comments)) {
       return res.status(404).json({
@@ -161,11 +171,11 @@ exports.getAnswerComments = async (req, res, next) => {
 
 exports.addCommentToAnswer = async (req, res, next) => {
   try {
-    const { answer, owner, content } = req.body;
+    const { answer, content } = req.body;
 
     const comment = new PublicGroupAnswerComment({
       answer: answer,
-      owner: owner,
+      owner: req.userId,
       content: content,
     });
 
@@ -210,11 +220,11 @@ exports.getAnswerCommentReplays = async (req, res, next) => {
 
 exports.addReplayToAnswerComment = async (req, res, next) => {
   try {
-    const { comment, content, owner } = req.body;
+    const { comment, content} = req.body;
     const replay = new PublicGroupAnswerCommentReplay({
       comment: comment,
       content: content,
-      owner: owner,
+      owner: req.userId,
     });
 
     const result = await replay.save();
@@ -264,10 +274,10 @@ exports.upvoteAnswer = async (req, res, next) => {
         const updatedDownVoters = removeDownVoter(
           answer.downvoters,
           existingDownVoterIndex
-        );
+        )
         answer.downvoters = [...updatedDownVoters];
         answer.numberOfDownvotes -= 1;
-        answer.upvoters = [...answer.upvoters,req.userId];
+        answer.upvoters = [...answer.upvoters, req.userId];
         answer.numberOfUpvotes += 1;
         await answer.save();
 
@@ -312,7 +322,7 @@ exports.downvoteAnswer = async (req, res, next) => {
       const updatedDownvoters = removeDownVoter(
         answer.downvoters,
         downvoterIndex
-      );
+      )
       answer.downvoters = [...updatedDownvoters];
       answer.numberOfDownvotes -= 1;
       await answer.save();
@@ -332,7 +342,7 @@ exports.downvoteAnswer = async (req, res, next) => {
       const updatedUpVoters = removeUpvoter(
         answer.upvoters,
         existingUpvoterIndex
-      );
+      )
       answer.upvoters = [...updatedUpVoters];
       answer.numberOfUpvotes -= 1;
       answer.downvoters = [...answer.downvoters, req.userId];
@@ -361,7 +371,7 @@ exports.downvoteAnswer = async (req, res, next) => {
 exports.toggleQuestionFollowingStatus = async (req, res, next) => {
   try {
     const questionId = req.body.questionId;
-    console.log(req.userId)
+    console.log(req.userId);
     if (isNullResult(req.userId)) {
       return res.status(401).json({
         error: "Not Authenticated",
@@ -375,7 +385,7 @@ exports.toggleQuestionFollowingStatus = async (req, res, next) => {
     if (checkExistingQuestionFollower(followers, req.userId)) {
       const updatedFollwers = unFollowQuestion(question, req.userId);
       question.followers = [...updatedFollwers];
-      question.numberOfFollowers -= 1
+      question.numberOfFollowers -= 1;
 
       await question.save();
 
@@ -388,7 +398,7 @@ exports.toggleQuestionFollowingStatus = async (req, res, next) => {
     const updatedFollowers = followQuestion(question.followers, req.userId);
 
     question.followers = [...updatedFollowers];
-    question.numberOfFollowers += 1
+    question.numberOfFollowers += 1;
 
     await question.save();
 
@@ -407,135 +417,129 @@ exports.toggleQuestionFollowingStatus = async (req, res, next) => {
 
 exports.createPost = async (req, res, next) => {
   try {
+    console.log(req.body)
+    console.log(req.userId);
+    const { content } = req.body;
 
-    const {content} = req.body
-
-    const image = req.file
+    const image = req.file;
 
     let post;
 
     if (!image) {
-        post = new PublicGroupPost({
-            content: content,
-            owner: req.userId,
-        })
-    }
-    else {
-        post = new PublicGroupPost({
-            content: content,
-            owner: req.userId,
-            imageUrl: image.path
-        })
+      post = new PublicGroupPost({
+        content: content,
+        owner: req.userId,
+      });
+    } else {
+      post = new PublicGroupPost({
+        content: content,
+        owner: req.userId,
+        imageUrl: image.path,
+      });
     }
 
-    const result = await post.save()
+    const result = await post.save();
 
     const resul = await PublicGroupPost.findById(result._id)
-        .populate('owner', 'name imageUrl')
-        .exec()
+      .populate("owner", "name imageUrl")
+      .exec();
 
     res.status(201).json({
-        message: "Created Post Successfully",
-        post: resul,
-    })
+      message: "Created Post Successfully",
+      data: resul,
+    });
   } catch (err) {
+    console.log(err.message)
     return next(errorCreator(err.message, 500));
   }
 };
 
 exports.togglePostLikeStatus = async (req, res, next) => {
   try {
-    const {postId} = req.body
-    const post = await PublicGroupPost.findById(postId)
+    const { postId } = req.body;
+    const post = await PublicGroupPost.findById(postId);
 
     if (isNullResult(post)) {
       return res.status(404).json({
-        error : 'Post not found'
-      })
+        error: "Post not found",
+      });
     }
 
-
-    const likerIndex = post.likes.findIndex(liker => {
-        return liker == req.userId
-    })
+    const likerIndex = post.likes.findIndex((liker) => {
+      return liker == req.userId;
+    });
 
     if (likerIndex > -1) {
-        post.likes = [...post.likes].filter(liker => {
-          return liker !== req.userId
-        })
-        post.numberOfLikes -= 1
-        await post.save()
-        return res.status(201).json({
-          message : 'Removed existing like'
-        })
+      post.likes = [...post.likes].filter((liker) => {
+        return liker !== req.userId;
+      });
+      post.numberOfLikes -= 1;
+      await post.save();
+      return res.status(201).json({
+        message: "Removed existing like",
+      });
     }
-    console.log(req.userId)
-    post.likes = [...post.likes, req.userId]
-    post.numberOfLikes += 1
-    await post.save()
+    console.log(req.userId);
+    post.likes = [...post.likes, req.userId];
+    post.numberOfLikes += 1;
+    await post.save();
 
     return res.status(201).json({
-      message : 'added like'
-    })
-  } 
-  catch (err) {
+      message: "added like",
+    });
+  } catch (err) {
     return next(errorCreator(err.message, 500));
   }
 };
 
 exports.addPostComment = async (req, res, next) => {
   try {
-    const {content , post} = req.body 
+    const { content, post } = req.body;
 
-    const image = req.file 
+    const image = req.file;
     let comment;
 
     if (!image) {
       comment = new PublicGroupPostComment({
-        content : content ,
-        post : post,
-        owner : req.userId
-      })
-    }
-    else {
+        content: content,
+        post: post,
+        owner: req.userId,
+      });
+    } else {
       comment = new PublicGroupPostComment({
-        content : content,
-        post : post,
-        owner : req.userId,
-        imageUrl : image.path
-      })
+        content: content,
+        post: post,
+        owner: req.userId,
+        imageUrl: image.path,
+      });
     }
 
-    await comment.save()
+    await comment.save();
 
     return res.status(201).json({
-      message : "Created Comment successfully",
-      comment : comment
-    })
-
-    
-  } 
-  catch (err) {
+      message: "Created Comment successfully",
+      comment: comment,
+    });
+  } catch (err) {
     return next(errorCreator(err.message, 500));
   }
 };
 
 exports.addReplayToPostComment = async (req, res, next) => {
   try {
-    const {comment, content} = req.body
+    const { comment, content } = req.body;
     const replay = new PublicGroupPostCommentReplay({
-      content : content ,
-      comment : comment,
-      owner : req.userId 
-    })
-    
-    await replay.save()
+      content: content,
+      comment: comment,
+      owner: req.userId,
+    });
+
+    await replay.save();
 
     return res.status(201).json({
-      message : "added replay successfully",
-      replay : replay 
-    })
-    
+      message: "added replay successfully",
+      replay: replay,
+    });
   } catch (err) {
     return next(errorCreator(err.message, 500));
   }
@@ -543,53 +547,51 @@ exports.addReplayToPostComment = async (req, res, next) => {
 
 exports.getPostComments = async (req, res, next) => {
   try {
-    const {post} = req.body
-    const comments = await PublicGroupPostComment.find({post: post}) 
+    const { post } = req.body;
+    const comments = await PublicGroupPostComment.find({ post: post });
     if (isNullResult(comments)) {
       return res.status(404).json({
-        error : 'Comments not found'
-      })
+        error: "Comments not found",
+      });
     }
 
     return res.status(200).json({
-      comments : comments
-    })
-  } 
-  catch (err) {
+      comments: comments,
+    });
+  } catch (err) {
     return next(errorCreator(err.message, 500));
   }
 };
 
 exports.getPostCommentReplays = async (req, res, next) => {
   try {
-    const {comment} = req.body 
-    const replays = await PublicGroupPostCommentReplay.find({comment : comment})
+    const { comment } = req.body;
+    const replays = await PublicGroupPostCommentReplay.find({
+      comment: comment,
+    });
 
     if (isNullResult(replays)) {
       return res.status(404).json({
-        error : 'Replays not found'
-      })
+        error: "Replays not found",
+      });
     }
 
     return res.status(200).json({
-      replays : replays 
-    })
-  } 
-  catch (err) {
+      replays: replays,
+    });
+  } catch (err) {
     return next(errorCreator(err.message, 500));
   }
 };
 
 const checkExistingUpvoter = (upvoters, upvoterId) => {
-  const upvoterIndex = upvoters.findIndex(
-    (upvoter) => upvoter == upvoterId
-  );
+  const upvoterIndex = upvoters.findIndex((upvoter) => upvoter == upvoterId);
   return upvoterIndex;
 };
 
 const removeUpvoter = (upvoters, upvoterIndex) => {
-  const updatedUpvoters = upvoters.splice(upvoterIndex, 0);
-  return updatedUpvoters;
+  upvoters.splice(upvoterIndex, 1);
+  return upvoters;
 };
 
 const checkExistingDownVoter = (downvoters, downvoterId) => {
@@ -600,8 +602,8 @@ const checkExistingDownVoter = (downvoters, downvoterId) => {
 };
 
 const removeDownVoter = (downvoters, downvoterIndex) => {
-  const updatedDownvoters = downvoters.splice(downvoterIndex, 0);
-  return updatedDownvoters;
+  downvoters.splice(downvoterIndex, 1);
+  return downvoters;
 };
 
 const addDownVoter = (downvoters, downvoterId) => {

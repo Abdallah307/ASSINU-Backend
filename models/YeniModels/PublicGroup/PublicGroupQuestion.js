@@ -10,6 +10,10 @@ const publicGroupQuestionSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref:'User'
     },
+    imageUrl : {
+        type : Schema.Types.String,
+        default : ''
+    },
     followers: {
         type : Schema.Types.Array,
         default : []

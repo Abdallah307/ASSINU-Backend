@@ -9,7 +9,6 @@ const departmentGroupPostsSchema = new Schema({
     },
     imageUrl: {
         type: Schema.Types.String,
-        default : ''
     },
     owner: {
         type: Schema.Types.ObjectId,
@@ -35,6 +34,8 @@ const departmentGroupPostsSchema = new Schema({
         type: Schema.Types.Number,
         default: 0
     }
+}, {
+    timestamps : true
 })
 
 module.exports = mongoose.model('DepartmentGroupPost', departmentGroupPostsSchema)

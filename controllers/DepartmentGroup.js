@@ -24,8 +24,10 @@ const isNullResult = (result) => {
   return false;
 };
 
+
 exports.getPostsAndQuestions = async (req, res, next) => {
   try {
+    
     const posts = await getPosts(req.params.departmentId);
 
     const questions = await getQuestions(req.params.departmentId);
@@ -42,22 +44,19 @@ exports.getPostsAndQuestions = async (req, res, next) => {
       });
 
       return res.status(200).json({
-        posts: posts,
-        questions : questions 
+        data : data,
       });
     }
 
     if (!isNullResult(posts)) {
       return res.status(200).json({
-        posts: posts,
-        questions : [] 
+        data : data
       });
     }
 
     if (!isNullResult(questions)) {
       return res.status(200).json({
-        questions: questions,
-        posts : []
+        data : data
       });
     }
   } catch (err) {
@@ -68,13 +67,25 @@ exports.getPostsAndQuestions = async (req, res, next) => {
 
 exports.createQuestion = async (req, res, next) => {
   try {
-    const { content, owner, departmentId } = req.body;
-
-    const question = new DepartmentGroupQuestion({
-      content: content,
-      owner: owner,
-      departmentId: departmentId,
-    });
+    const { content, departmentId } = req.body;
+    const image = req.file 
+    let question;
+    if (!image) {
+       question = new DepartmentGroupQuestion({
+        content: content,
+        owner: req.userId,
+        departmentId: departmentId,
+      });
+    }
+    else {
+       question = new DepartmentGroupQuestion({
+        content: content,
+        owner: req.userId,
+        departmentId: departmentId,
+        imageUrl : image.path 
+      });
+    }
+    
 
     const result = await question.save();
 
@@ -83,7 +94,7 @@ exports.createQuestion = async (req, res, next) => {
       .exec();
 
     return res.status(201).json({
-      question: createdQuestion,
+      data: createdQuestion,
     });
   } catch (err) {
     return next(errorCreator(err.message, 500));
@@ -92,11 +103,11 @@ exports.createQuestion = async (req, res, next) => {
 
 exports.addAnswer = async (req, res, next) => {
   try {
-    const { content, owner, question } = req.body;
+    const { content, question } = req.body;
 
     const answer = new DepartmentGroupAnswer({
       content: content,
-      owner: owner,
+      owner: req.userId,
       question: question,
     });
 
@@ -121,9 +132,11 @@ exports.addAnswer = async (req, res, next) => {
 
 exports.getQuestionAnswers = async (req, res, next) => {
   try {
-    const { question } = req.body;
-    const answers = await DepartmentGroupAnswer.find({ question: question });
-
+    const { questionId } = req.params;
+    const answers = await DepartmentGroupAnswer.find({ question: questionId})
+    .populate('owner', 'name imageUrl')
+    .exec()
+    
     if (isNullResult(answers)) {
       return res.status(404).json({
         error: "No answers found",
@@ -140,9 +153,9 @@ exports.getQuestionAnswers = async (req, res, next) => {
 
 exports.getAnswerComments = async (req, res, next) => {
   try {
-    const { answer } = req.body;
+    const { answerId } = req.params;
     const comments = await DepartmentGroupAnswerComment.find({
-      answer: answer,
+      answer: answerId,
     });
 
     if (isNullResult(comments)) {
@@ -161,11 +174,11 @@ exports.getAnswerComments = async (req, res, next) => {
 
 exports.addCommentToAnswer = async (req, res, next) => {
   try {
-    const { answer, owner, content } = req.body;
+    const { answer, content } = req.body;
 
     const comment = new DepartmentGroupAnswerComment({
       answer: answer,
-      owner: owner,
+      owner: req.userId,
       content: content,
     });
 
@@ -210,11 +223,11 @@ exports.getAnswerCommentReplays = async (req, res, next) => {
 
 exports.addReplayToAnswerComment = async (req, res, next) => {
   try {
-    const { comment, content, owner } = req.body;
+    const { comment, content } = req.body;
     const replay = new DepartmentGroupAnswerCommentReplay({
       comment: comment,
       content: content,
-      owner: owner,
+      owner: req.userId,
     });
 
     const result = await replay.save();
@@ -224,6 +237,11 @@ exports.addReplayToAnswerComment = async (req, res, next) => {
     )
       .populate("owner", "name imageUrl")
       .exec();
+
+      return res.status(201).json({
+        replay : createdReplay
+      })
+
   } catch (err) {
     return next(errorCreator(err.message, 500));
   }
@@ -438,7 +456,7 @@ exports.createPost = async (req, res, next) => {
 
     res.status(201).json({
         message: "Created Post Successfully",
-        post: resul,
+        data: resul,
     })
   } catch (err) {
     return next(errorCreator(err.message, 500));

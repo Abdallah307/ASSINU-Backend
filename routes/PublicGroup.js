@@ -2,31 +2,32 @@ const express = require('express');
 const router = express.Router()
 
 const publicGroupController = require('../controllers/PublicGroup')
+const isAuth = require('../middleware/is-auth')
 
-router.get('/postsquestions', publicGroupController.getPostsAndQuestions)
+router.get('/postsquestions',isAuth, publicGroupController.getPostsAndQuestions)
 
 // questions routes
 
-router.post('/createquestion', publicGroupController.createQuestion)
-router.post('/questions/addanswer', publicGroupController.addAnswer)
-router.get('/questions/:questionId/answers', publicGroupController.getQuestionAnswers)
-router.get('/questions/answer/:answerId/comments', publicGroupController.getAnswerComments)
-router.post('/questions/answer/addcomment', publicGroupController.addCommentToAnswer)
-router.get('/questions/answers/comments/:commentId/replays' ,publicGroupController.getAnswerCommentReplays)
-router.post('/questions/answers/comments/replays/addreplay', publicGroupController.addReplayToAnswerComment)
-router.put('/questions/answer/upvote', publicGroupController.upvoteAnswer)
-router.put('/questions/answer/downvote', publicGroupController.downvoteAnswer)
-router.put('/questions/follow', publicGroupController.toggleQuestionFollowingStatus)
+router.post('/createquestion',isAuth, publicGroupController.createQuestion)
+router.post('/questions/addanswer',isAuth, publicGroupController.addAnswer)
+router.get('/questions/:questionId/answers',isAuth, publicGroupController.getQuestionAnswers)
+router.get('/questions/answer/:answerId/comments',isAuth, publicGroupController.getAnswerComments)
+router.post('/questions/answer/addcomment',isAuth, publicGroupController.addCommentToAnswer)
+router.get('/questions/answers/comments/:commentId/replays' ,isAuth,publicGroupController.getAnswerCommentReplays)
+router.post('/questions/answers/comments/replays/addreplay',isAuth, publicGroupController.addReplayToAnswerComment)
+router.put('/questions/answer/upvote',isAuth, publicGroupController.upvoteAnswer)
+router.put('/questions/answer/downvote',isAuth, publicGroupController.downvoteAnswer)
+router.put('/questions/follow',isAuth, publicGroupController.toggleQuestionFollowingStatus)
 
 
 // posts routes
 
-router.post('/createpost', publicGroupController.createPost)
-router.put('/posts/like', publicGroupController.togglePostLikeStatus)
-router.post('/posts/addcomment', publicGroupController.addPostComment)
-router.post('/posts/commments/addreplay', publicGroupController.addReplayToPostComment)
-router.get('/posts/:postId/comments', publicGroupController.getPostComments)
-router.get('/posts/comments/:commentId/replays', publicGroupController.getPostCommentReplays)
+router.post('/createpost',isAuth, publicGroupController.createPost)
+router.put('/posts/like',isAuth, publicGroupController.togglePostLikeStatus)
+router.post('/posts/addcomment',isAuth, publicGroupController.addPostComment)
+router.post('/posts/commments/addreplay',isAuth, publicGroupController.addReplayToPostComment)
+router.get('/posts/:postId/comments',isAuth, publicGroupController.getPostComments)
+router.get('/posts/comments/:commentId/replays',isAuth, publicGroupController.getPostCommentReplays)
 
 
 module.exports = router
