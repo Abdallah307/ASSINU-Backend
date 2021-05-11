@@ -25,7 +25,7 @@ router.put('/questions/follow',isAuth, publicGroupController.toggleQuestionFollo
 router.post('/createpost',isAuth, publicGroupController.createPost)
 router.put('/posts/like',isAuth, publicGroupController.togglePostLikeStatus)
 router.post('/posts/addcomment',isAuth, publicGroupController.addPostComment)
-router.post('/posts/commments/addreplay',isAuth, publicGroupController.addReplayToPostComment)
+router.post('/posts/comments/addreplay',isAuth, publicGroupController.addReplayToPostComment)
 router.get('/posts/:postId/comments',isAuth, publicGroupController.getPostComments)
 router.get('/posts/comments/:commentId/replays',isAuth, publicGroupController.getPostCommentReplays)
 

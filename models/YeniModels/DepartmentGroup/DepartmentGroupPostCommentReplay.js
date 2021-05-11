@@ -14,6 +14,8 @@ const postCommentReplaySchema = new Schema({
         type:Schema.Types.ObjectId,
         ref:'DepartmentGroupPostComment'
     }
+}, {
+    timestamps : true 
 })
 
 module.exports = mongoose.model('DepartmentGroupPostCommentReplay', postCommentReplaySchema)

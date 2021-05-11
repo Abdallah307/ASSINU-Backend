@@ -156,7 +156,10 @@ exports.getAnswerComments = async (req, res, next) => {
     const { answerId } = req.params;
     const comments = await DepartmentGroupAnswerComment.find({
       answer: answerId,
-    });
+    })
+    .sort({_id : -1})
+    .populate('owner', 'name imageUrl')
+    .exec()
 
     if (isNullResult(comments)) {
       return res.status(404).json({
@@ -202,10 +205,12 @@ exports.addCommentToAnswer = async (req, res, next) => {
 
 exports.getAnswerCommentReplays = async (req, res, next) => {
   try {
-    const { comment } = req.body;
+    const { commentId } = req.params;
     const replays = await DepartmentGroupAnswerCommentReplay.find({
-      comment: comment,
-    });
+      comment: commentId,
+    })
+    .populate('owner', 'name imageUrl')
+    .exec()
 
     if (isNullResult(replays)) {
       return res.status(404).json({
@@ -238,9 +243,13 @@ exports.addReplayToAnswerComment = async (req, res, next) => {
       .populate("owner", "name imageUrl")
       .exec();
 
-      return res.status(201).json({
+      res.status(201).json({
         replay : createdReplay
       })
+
+      const targetComment = await DepartmentGroupAnswerComment.findById(comment)
+      targetComment.numberOfRepalys += 1
+      await targetComment.save()
 
   } catch (err) {
     return next(errorCreator(err.message, 500));
@@ -526,12 +535,19 @@ exports.addPostComment = async (req, res, next) => {
       })
     }
 
-    await comment.save()
+    const resul = await comment.save()
 
-    return res.status(201).json({
-      message : "Created Comment successfully",
-      comment : comment
+    const createdComment = await DepartmentGroupPostComment.findById(resul._id)
+    .populate('owner', 'name imageUrl')
+    .exec()
+
+    res.status(201).json({
+      comment : createdComment
     })
+
+    const targetPost = await DepartmentGroupPost.findById(post)
+    targetPost.numberOfComments += 1
+    targetPost.save()
 
     
   } 
@@ -548,13 +564,20 @@ exports.addReplayToPostComment = async (req, res, next) => {
       comment : comment,
       owner : req.userId 
     })
-    
-    await replay.save()
 
-    return res.status(201).json({
-      message : "added replay successfully",
-      replay : replay 
-    })
+    const resul = await replay.save()
+    
+    const createdReplay = await DepartmentGroupPostCommentReplay.findById(resul._id)
+    .populate('owner', 'name imageUrl')
+    .exec()
+
+    res.status(201).json({
+      replay: createdReplay,
+    });
+
+    const targetComment = await DepartmentGroupPostComment.findById(comment)
+    targetComment.numberOfReplays += 1
+    targetComment.save()
     
   } catch (err) {
     return next(errorCreator(err.message, 500));
@@ -563,8 +586,11 @@ exports.addReplayToPostComment = async (req, res, next) => {
 
 exports.getPostComments = async (req, res, next) => {
   try {
-    const {post} = req.body
-    const comments = await DepartmentGroupPostComment.find({post: post}) 
+    const {postId} = req.params 
+    const comments = await DepartmentGroupPostComment.find({post: postId}) 
+    .sort({_id : -1})
+    .populate('owner', 'name imageUrl')
+    .exec()
     if (isNullResult(comments)) {
       return res.status(404).json({
         error : 'Comments not found'
@@ -582,8 +608,11 @@ exports.getPostComments = async (req, res, next) => {
 
 exports.getPostCommentReplays = async (req, res, next) => {
   try {
-    const {comment} = req.body 
-    const replays = await DepartmentGroupPostCommentReplay.find({comment : comment})
+    const {commentId} = req.params 
+    const replays = await DepartmentGroupPostCommentReplay.find({comment : commentId})
+    .sort({_id : -1})
+    .populate('owner', 'name imageUrl')
+    .exec()
 
     if (isNullResult(replays)) {
       return res.status(404).json({

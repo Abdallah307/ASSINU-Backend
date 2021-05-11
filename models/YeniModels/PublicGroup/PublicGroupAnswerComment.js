@@ -10,7 +10,13 @@ const answerCommentSchema = new Schema({
         type:Schema.Types.ObjectId,
         ref:'PublicGroupAnswer'
     },
+    numberOfReplays : {
+        type : Schema.Types.Number , 
+        default : 0
+    },
     content: Schema.Types.String,
+}, {
+    timestamps : true 
 })
 
 module.exports = mongoose.model('PublicGroupAnswerComment', answerCommentSchema)
