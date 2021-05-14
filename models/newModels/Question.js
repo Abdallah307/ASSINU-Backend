@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
-const { Schema } = mongoose
+const {Schema} = mongoose
 
-const departmentGroupQuestionSchema = new Schema({
+const questionSchema = new Schema({
     content: {
         type: Schema.Types.String,
         required: true,
@@ -26,17 +26,16 @@ const departmentGroupQuestionSchema = new Schema({
         type: Schema.Types.Number,
         default:0
     },
-    departmentId : Schema.Types.ObjectId,
+    groupId : {
+        type: Schema.Types.ObjectId,
+        required : true
+    },
     type : {
         type: Schema.Types.String,
         default : 'question'
     }
-    
 }, {
-    timestamps:true
+    timestamps : true
 })
 
-departmentGroupQuestionSchema.index({content:'text'})
-
-module.exports = mongoose.model('DepartmentGroupQuestion', departmentGroupQuestionSchema)
-
+module.exports = mongoose.model('Question', questionSchema)

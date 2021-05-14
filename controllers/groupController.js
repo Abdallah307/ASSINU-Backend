@@ -1,4 +1,4 @@
-const Post = require('../models/post')
+//const Post = require('../models/post')
 const User = require('../models/User')
 const GroupMessage = require('../models/GroupMessage')
 const GroupPoll = require('../models/GroupPolls')

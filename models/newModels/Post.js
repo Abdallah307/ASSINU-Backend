@@ -1,18 +1,21 @@
 const mongoose = require('mongoose');
-const { Schema } = mongoose
+const {Schema} = mongoose
 
-
-const publicGroupPostsSchema = new Schema({
-    content:{
-        type: Schema.Types.String,
-        required : true,
+const postSchema = new Schema({
+    content : {
+        type : Schema.Types.String,
+        required : true 
     },
     imageUrl: {
         type: Schema.Types.String,
     },
-    owner: {
+    groupId: {
         type: Schema.Types.ObjectId,
-        ref:'User'
+        required : true
+    },
+    owner : {
+        type : Schema.Types.ObjectId,
+        ref : "User"
     },
     likes: {
         type: Schema.Types.Array
@@ -34,4 +37,4 @@ const publicGroupPostsSchema = new Schema({
     timestamps : true
 })
 
-module.exports = mongoose.model('PublicGroupPost', publicGroupPostsSchema)
+module.exports = mongoose.model('Post', postSchema)
