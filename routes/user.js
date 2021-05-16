@@ -12,5 +12,7 @@ router.get('/messages/chats/:sender',isAuth, userController.getAllChats)
 
 router.post('/messages',isAuth, userController.getPersonalMessages)
 
+router.post('/changeimage', isAuth , userController.changeProfileImage)
+
 
 module.exports = router

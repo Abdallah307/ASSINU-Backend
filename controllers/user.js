@@ -1,6 +1,9 @@
 const User = require('../models/User')
 const Message = require('../models/Message')
 const errorCreator = require('../errorCreator')
+const io = require('../socket')
+const fileHelper = require('../util/file')
+
 
 exports.getUserInfo = async (req, res, next) => {
 
@@ -97,7 +100,7 @@ exports.getAllChats = async (req, res, next) => {
             const lastMessage = await Message.findOne({ $or: [{ sender: sender, receiver: item }, { sender: item, receiver: sender }] })
                 .sort({ _id: -1 }).exec()
             chatUsers.push({
-                user: await Student.findOne({ _id: item }).select('name imageUrl'),
+                user: await User.findOne({ _id: item }).select('name imageUrl'),
                 lastMessage: lastMessage.content
             })
             //}
@@ -109,6 +112,7 @@ exports.getAllChats = async (req, res, next) => {
         })
     }
     catch (err) {
+        console.log(err.message)
         const error = errorCreator(err.message, 500)
         return next(error)
     }
@@ -140,3 +144,32 @@ exports.getPersonalMessages = async (req, res, next) => {
         return next(error)
     }
 }
+
+exports.changeProfileImage = async (req, res, next) => {
+    try {
+        const image = req.file
+        if (!image) {
+            throw errorCreator('No Image Selected!', 422)
+        }
+
+        const user = await User.findById(req.userId)
+        if (!user) {
+            throw errorCreator('User Not Found', 500)
+        }
+
+        fileHelper.deleteFile(user.imageUrl, (error) => {
+            return next(errorCreator('Error Uploading Image', 500))
+        })
+
+        user.imageUrl = image.path 
+        await user.save()
+
+        return res.status(201).json({
+            imageUrl : image.path 
+        })
+    }
+    catch(err) {
+        return next(err)
+    }
+}
+

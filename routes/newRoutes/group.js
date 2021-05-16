@@ -21,12 +21,19 @@ router.post('/addcomment',isAuth, groupController.addComment)
 router.get('/replays/:referedTo' ,isAuth,groupController.getReplays)
 router.post('/addreplay',isAuth, groupController.addReplay)
 
+//group messages 
+
+router.get('/messages/:groupId',isAuth, groupController.getGroupMessages)
+
+router.post('/messages/addmessage',isAuth, groupController.createMessage)
+
 
 
 //posts
 
 router.post('/createpost',isAuth, groupController.createPost)
 router.put('/posts/likepost',isAuth, groupController.togglePostLikeStatus)
+router.delete('/posts/delete/:postId', groupController.deleteGroupPost)
 
 //polls
 

@@ -1,7 +1,14 @@
+const onlineUsers = []
+
 exports.sIO = (io) => {
 
     io.on('connection', socket => {
-
+        const userId = socket.handshake.query.userId
+        onlineUsers.push({
+            userId : userId,
+            socketId : socket.id 
+        })
+        console.log('Client connected')
         socket.on('typingEventG', ({ value, groupId, username }) => {
             if (value.length !== 0) {
                 io.emit('tttG', {
@@ -33,7 +40,10 @@ exports.sIO = (io) => {
             }
 
         })
-        console.log('Client connected')
+
+
     })
+
+    
 
 }
