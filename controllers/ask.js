@@ -10,11 +10,12 @@ exports.askQuestion = async (req, res, next) => {
     sender: req.userId,
     receiver: receiver,
   });
-
-  await newQuestion.save();
+  const result = await newQuestion.save();
+  
 
   io.getIO().emit("askQuestion", {
-    receiver : receiver
+    receiver : receiver,
+    question : result 
   });
 
   return res.status(201).json({
@@ -27,7 +28,8 @@ exports.getReceivedQuestions = async (req, res, next) => {
   const questions = await AskQuestion.find({
     receiver: userId,
     isAnswered: false,
-  });
+  })
+  .sort({_id : -1})
 
   if (!questions) {
     return res.status(404).json({
@@ -42,7 +44,7 @@ exports.getReceivedQuestions = async (req, res, next) => {
 
 exports.getAskedQuestions = async (req, res, next) => {
   const userId = req.params.userId;
-  const questions = await AskQuestion.find({ sender: userId });
+  const questions = await AskQuestion.find({ sender: userId }).sort({_id : -1});
 
   if (!questions) {
     return res.status(404).json({
@@ -60,7 +62,7 @@ exports.getAnsweredQuestions = async (req, res, next) => {
   const questions = await AskQuestion.find({
     receiver: userId,
     isAnswered: true,
-  });
+  }).sort({_id : -1});
 
   if (!questions) {
     return res.status(404).json({
@@ -77,6 +79,7 @@ exports.answerQuestion = async (req, res, next) => {
   try {
     const questionId = req.body.questionId;
     const answer = req.body.answer;
+    const username = req.body.username
 
     const question = await AskQuestion.findById(questionId);
 
@@ -84,10 +87,12 @@ exports.answerQuestion = async (req, res, next) => {
     question.isAnswered = true;
 
     await question.save();
-    //need some work here
-    // io.getIO().emit("myAskQuestionAnswered", {
-    //     receiver : receiver
-    //   }); 
+    io.getIO().emit("myAskQuestionAnswered", {
+        emiterName : username ,
+        receiver : question.sender,
+        questionId : questionId,
+        answer : answer  
+    }); 
 
     return res.status(201).json({
       question: question,
