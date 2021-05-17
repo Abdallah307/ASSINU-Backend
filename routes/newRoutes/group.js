@@ -27,7 +27,7 @@ router.get('/messages/:groupId',isAuth, groupController.getGroupMessages)
 
 router.post('/messages/addmessage',isAuth, groupController.createMessage)
 
-
+router.post('/members', isAuth, groupController.getGroupMembersInfo)
 
 //posts
 

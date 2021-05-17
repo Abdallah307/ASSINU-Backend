@@ -41,6 +41,10 @@ exports.sIO = (io) => {
 
         })
 
+        socket.on('disconnect' , (aa) => {
+            console.log('disconnected')
+        })
+
 
     })
 

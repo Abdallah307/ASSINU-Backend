@@ -8,6 +8,7 @@ const Poll = require("../../models/newModels/Poll");
 const GroupMessage = require("../../models/GroupMessage");
 const io = require("../../socket");
 const fileHelper = require("../../util/file");
+const User = require("../../models/User");
 
 const getPosts = async (groupId) => {
   return Post.find({ groupId: groupId })
@@ -30,6 +31,34 @@ const getPolls = async (groupId) => {
 const isNullResult = (result) => {
   if (!result) return true;
   return false;
+};
+
+exports.getGroupMembersInfo = async (req, res, next) => {
+  try {
+    const membersEmails = req.body.emails;
+
+    let members = [];
+    const fetchingFilter = "name imageUrl";
+    for (let i = 0; i < membersEmails.length; i++) {
+      const member = await User.find(
+        { email: membersEmails[i] },
+        fetchingFilter
+      );
+
+      if (member.length !== 0) {
+        members.push(member[0]);
+      }
+      if (i == membersEmails.length - 1) {
+        return res.status(200).json({
+          members: members,
+        });
+      }
+    }
+  } catch (err) {
+    return res.status(500).json({
+      error: err,
+    });
+  }
 };
 
 exports.getGroupTimeline = async (req, res, next) => {
@@ -60,7 +89,7 @@ exports.getGroupTimeline = async (req, res, next) => {
 
 exports.createQuestion = async (req, res, next) => {
   try {
-    const { content, groupId } = req.body;
+    const { content, groupId, members, groupName, username } = req.body;
     const image = req.file;
     let question;
     if (!image) {
@@ -84,6 +113,13 @@ exports.createQuestion = async (req, res, next) => {
       .populate("owner", "name imageUrl")
       .exec();
 
+      io.getIO().emit("createdQuestion", {
+        emiter: req.userId,
+        members: JSON.parse(members),
+        groupName: groupName,
+        username : username,
+      });
+
     return res.status(201).json({
       question: createdQuestion,
     });
@@ -94,7 +130,7 @@ exports.createQuestion = async (req, res, next) => {
 
 exports.addAnswer = async (req, res, next) => {
   try {
-    const { content, question } = req.body;
+    const { content, question,username } = req.body;
 
     const answer = new Answer({
       content: content,
@@ -111,11 +147,20 @@ exports.addAnswer = async (req, res, next) => {
     res.status(201).json({
       answer: createdAnswer,
     });
+    
+
 
     const targetQuestion = await Question.findById(question);
     targetQuestion.numberOfAnswers += 1;
 
-    targetQuestion.save();
+    await targetQuestion.save();
+
+    io.getIO().emit("answerAddedToQuestionFollowed", {
+      emiter: req.userId,
+      followers: targetQuestion.followers,
+      username : username,
+    });
+
   } catch (err) {
     return next(err);
   }
@@ -328,7 +373,7 @@ exports.getComments = async (req, res, next) => {
 
 exports.addComment = async (req, res, next) => {
   try {
-    const { referedTo, content, type } = req.body;
+    const { referedTo, content, type, username } = req.body;
     const comment = new Comment({
       content: content,
       referedTo: referedTo,
@@ -349,10 +394,23 @@ exports.addComment = async (req, res, next) => {
       const answer = await Answer.findById(referedTo);
       answer.numberOfComments += 1;
       answer.save();
+
+      io.getIO().emit("commentOnMyAnswer", {
+        emiter: req.userId,
+        answerOwner: answer.owner,
+        username : username,
+      });
+
     } else if (type === "post") {
       const post = await Post.findById(referedTo);
       post.numberOfComments += 1;
       post.save();
+
+      io.getIO().emit("commentOnMyPost", {
+        emiter: req.userId,
+        postOwner: post.owner,
+        username : username,
+      });
     }
   } catch (err) {
     return next(err);
@@ -381,7 +439,7 @@ exports.getReplays = async (req, res, next) => {
 
 exports.addReplay = async (req, res, next) => {
   try {
-    const { referedTo, content } = req.body;
+    const { referedTo, content, username } = req.body;
     const replay = new Replay({
       content: content,
       referedTo: referedTo,
@@ -400,7 +458,14 @@ exports.addReplay = async (req, res, next) => {
 
     const targetComment = await Comment.findById(referedTo);
     targetComment.numberOfReplays += 1;
-    targetComment.save();
+    await targetComment.save();
+
+    io.getIO().emit("replayedToMyComment", {
+      emiter: req.userId,
+      commentOwner: targetComment.owner,
+      username : username,
+    });
+
   } catch (err) {
     return next(err);
   }
@@ -408,9 +473,9 @@ exports.addReplay = async (req, res, next) => {
 
 exports.createPost = async (req, res, next) => {
   try {
-    const { content, groupId, members } = req.body;
+    const { content, groupId, members, groupName, username } = req.body;
     const image = req.file;
-
+    console.log(members);
     let post;
 
     if (!image) {
@@ -435,9 +500,10 @@ exports.createPost = async (req, res, next) => {
       .exec();
 
     io.getIO().emit("createdpost", {
-      name: "Abdallah Dereia",
-      groupName: "Java",
+      emiter: req.userId,
       members: JSON.parse(members),
+      groupName: groupName,
+      username : username,
     });
 
     res.status(201).json({
@@ -463,7 +529,6 @@ exports.deleteGroupPost = async (req, res, next) => {
 
     const postComments = await Comment.find({ referedTo: postId });
     if (postComments) {
-      
       const commentsIds = postComments.map((comment) => {
         return comment._id;
       });

@@ -166,7 +166,7 @@ exports.signOut = async (req,res, next) => {
 const createToken = (user) => {
     const token = jwt.sign({
         userId: user._id.toString(),
-        email:user.email 
+        email:user.email, 
     }, "iamabdallahdereiaiamacomputerengineer")
 
     return token 
