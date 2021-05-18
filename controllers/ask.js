@@ -1,26 +1,40 @@
 const AskQuestion = require("../models/askQuestion");
 const errorCreator = require("../errorCreator");
+const User = require('../models/User')
 const io = require("../socket");
 
 exports.askQuestion = async (req, res, next) => {
-  const { question, receiver } = req.body;
 
-  const newQuestion = new AskQuestion({
-    question: question,
-    sender: req.userId,
-    receiver: receiver,
-  });
-  const result = await newQuestion.save();
+  try {
+    const { question, receiver } = req.body;
+
+    const receiverUser = await User.findById(receiver)
   
-
-  io.getIO().emit("askQuestion", {
-    receiver : receiver,
-    question : result 
-  });
-
-  return res.status(201).json({
-    question: newQuestion,
-  });
+    if (!receiverUser.myAsk) {
+      throw errorCreator('Error occured', 403)
+    }
+  
+    const newQuestion = new AskQuestion({
+      question: question,
+      sender: req.userId,
+      receiver: receiver,
+    });
+    const result = await newQuestion.save();
+    
+  
+    io.getIO().emit("askQuestion", {
+      receiver : receiver,
+      question : result 
+    });
+  
+    return res.status(201).json({
+      question: newQuestion,
+    });
+  }
+  catch(err) {
+    return next (err)
+  }
+  
 };
 
 exports.getReceivedQuestions = async (req, res, next) => {

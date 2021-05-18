@@ -5,6 +5,7 @@ const groupRouter = require('./routes/group')
 const sharingCenterRouter = require('./routes/sharingCenter')
 const userRouter = require('./routes/user')
 const authRouter = require('./routes/auth')
+const najahApiRouter = require('./routes/najahApi')
 const bodyParser = require('body-parser')
 const multer = require('multer')
 const path = require('path')
@@ -66,6 +67,8 @@ app.use('/sharingcenter', sharingCenterRouter)
 app.use('/user', userRouter)
 
 app.use('/auth', authRouter)
+
+app.use('/api/najah',najahApiRouter)
 
 app.use((error, req, res, next) => {
     !error.statusCode ? error.statusCode = 500 : null

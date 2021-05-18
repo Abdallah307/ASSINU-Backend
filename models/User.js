@@ -25,6 +25,16 @@ const userSchema = new Schema({
     userType: {
         type:Schema.Types.String,
         required: true
+    },
+    notifications : {
+        type : Schema.Types.Boolean,
+        required : true,
+        default : true
+    },
+    myAsk : {
+        type : Schema.Types.Boolean,
+        required : true,
+        default : true
     }
 })
 

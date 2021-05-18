@@ -102,7 +102,9 @@ exports.signIn = async (req, res, next) => {
                 departmentName: response.data.departmentId.name,
                 departmentId:response.data.departmentId._id,
                 userType: user.userType,
-                numberOfMembers : resul.data.numberOfMembers
+                numberOfMembers : resul.data.numberOfMembers,
+                notifications : user.notifications,
+                myAsk : user.myAsk 
             })
         }
     }
@@ -121,7 +123,9 @@ exports.signIn = async (req, res, next) => {
                 departmentName: response.data.departmentId.name,
                 departmentId:response.data.departmentId._id,
                 userType: user.userType,
-                numberOfMembers: resul.data.numberOfMembers
+                numberOfMembers: resul.data.numberOfMembers,
+                notifications : user.notifications,
+                myAsk : user.myAsk
             })
         }
     }

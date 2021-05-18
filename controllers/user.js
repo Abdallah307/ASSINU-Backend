@@ -47,8 +47,8 @@ exports.createPersonalMessage = async (req, res, next) => {
         const resul = await newMessage.save()
 
         const msg = await Message.findOne({ _id: resul._id })
-            .populate('sender', 'imageUrl name')
-            .populate('receiver', 'imageUrl name')
+            .populate('sender', 'imageUrl name myAsk')
+            .populate('receiver', 'imageUrl name myAsk')
             .exec()
 
         io.getIO().emit('messageP', {
@@ -75,11 +75,11 @@ exports.getAllChats = async (req, res, next) => {
         const chatss = await Message.find({ $or: [{ sender: sender }, { receiver: sender }] })
 
         const chats = await Message.find({ sender: sender })
-            .populate('receiver', 'name imageUrl')
+            .populate('receiver', 'name imageUrl myAsk')
             .exec()
 
         const chats2 = await Message.find({ receiver: sender })
-            .populate('sender', 'name imageUrl')
+            .populate('sender', 'name imageUrl myAsk')
             .exec()
 
 
@@ -100,7 +100,7 @@ exports.getAllChats = async (req, res, next) => {
             const lastMessage = await Message.findOne({ $or: [{ sender: sender, receiver: item }, { sender: item, receiver: sender }] })
                 .sort({ _id: -1 }).exec()
             chatUsers.push({
-                user: await User.findOne({ _id: item }).select('name imageUrl'),
+                user: await User.findOne({ _id: item }).select('name imageUrl myAsk'),
                 lastMessage: lastMessage.content
             })
             //}
@@ -125,8 +125,8 @@ exports.getPersonalMessages = async (req, res, next) => {
         const mss = await Message
             .find({ $or: [{ sender: sender, receiver: receiver }, { sender: receiver, receiver: sender }] })
             .sort({ _id: 1 })
-            .populate('receiver', 'name imageUrl')
-            .populate('sender', 'name imageUrl')
+            .populate('receiver', 'name imageUrl myAsk')
+            .populate('sender', 'name imageUrl myAsk')
             .exec()
 
         if (!mss) {
@@ -170,6 +170,45 @@ exports.changeProfileImage = async (req, res, next) => {
     }
     catch(err) {
         return next(err)
+    }
+}
+
+exports.switchNotifications = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.userId)
+        if (!user) {
+            throw errorCreator('Not Authorized', 403)
+        }
+
+        user.notifications = !user.notifications
+
+        await user.save()
+
+        return res.status(201).json({
+            message : 'Toggled'
+        })
+    }
+    catch(err) {
+        return next (err)
+    }
+}
+exports.switchMyAsk = async (req ,res, next) => {
+    try {
+        const user = await User.findById(req.userId)
+        if (!user) {
+            throw errorCreator('Not Authorized', 403)
+        }
+
+        user.myAsk = !user.myAsk
+
+        await user.save()
+
+        return res.status(201).json({
+            message : 'Toggled'
+        })
+    }
+    catch(err) {
+        return next (err)
     }
 }
 
