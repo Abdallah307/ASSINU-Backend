@@ -25,6 +25,7 @@ const getQuestions = async (groupId) => {
 const getPolls = async (groupId) => {
   return Poll.find({ groupId: groupId })
     .populate("owner", "name imageUrl myAsk")
+    .populate('voters.voterId', 'name imageUrl myAsk')
     .exec();
 };
 
@@ -113,19 +114,16 @@ exports.createQuestion = async (req, res, next) => {
       .populate("owner", "name imageUrl myAsk")
       .exec();
 
-      res.status(201).json({
-        question: createdQuestion,
-      }); 
+    res.status(201).json({
+      question: createdQuestion,
+    });
 
-
-      io.getIO().emit("createdQuestion", {
-        emiter: req.userId,
-        members: JSON.parse(members),
-        groupName: groupName,
-        username : username,
-      });
-
-     
+    io.getIO().emit("createdQuestion", {
+      emiter: req.userId,
+      members: JSON.parse(members),
+      groupName: groupName,
+      username: username,
+    });
   } catch (err) {
     return next(err);
   }
@@ -133,7 +131,7 @@ exports.createQuestion = async (req, res, next) => {
 
 exports.addAnswer = async (req, res, next) => {
   try {
-    const { content, question,username } = req.body;
+    const { content, question, username } = req.body;
 
     const answer = new Answer({
       content: content,
@@ -150,8 +148,6 @@ exports.addAnswer = async (req, res, next) => {
     res.status(201).json({
       answer: createdAnswer,
     });
-    
-
 
     const targetQuestion = await Question.findById(question);
     targetQuestion.numberOfAnswers += 1;
@@ -161,9 +157,8 @@ exports.addAnswer = async (req, res, next) => {
     io.getIO().emit("answerAddedToQuestionFollowed", {
       emiter: req.userId,
       followers: targetQuestion.followers,
-      username : username,
+      username: username,
     });
-
   } catch (err) {
     return next(err);
   }
@@ -401,9 +396,8 @@ exports.addComment = async (req, res, next) => {
       io.getIO().emit("commentOnMyAnswer", {
         emiter: req.userId,
         answerOwner: answer.owner,
-        username : username,
+        username: username,
       });
-
     } else if (type === "post") {
       const post = await Post.findById(referedTo);
       post.numberOfComments += 1;
@@ -412,7 +406,7 @@ exports.addComment = async (req, res, next) => {
       io.getIO().emit("commentOnMyPost", {
         emiter: req.userId,
         postOwner: post.owner,
-        username : username,
+        username: username,
       });
     }
   } catch (err) {
@@ -466,9 +460,8 @@ exports.addReplay = async (req, res, next) => {
     io.getIO().emit("replayedToMyComment", {
       emiter: req.userId,
       commentOwner: targetComment.owner,
-      username : username,
+      username: username,
     });
-
   } catch (err) {
     return next(err);
   }
@@ -506,7 +499,7 @@ exports.createPost = async (req, res, next) => {
       emiter: req.userId,
       members: JSON.parse(members),
       groupName: groupName,
-      username : username,
+      username: username,
     });
 
     res.status(201).json({
@@ -622,23 +615,59 @@ exports.postVotePoll = async (req, res, next) => {
 
     const poll = await Poll.findById(pollId);
 
-    const choiceIndex = poll.choices.findIndex((choice) => {
-      return choice._id == choiceId;
-    });
+    const voters = [...poll.voters]
+    const choices = [...poll.choices]
+    console.log(choices)
+    const voterIndex = checkIfUserAlreadyVotedPoll(voters, req.userId);
+    console.log('index is : ', voterIndex)
+    
+    if (voterIndex > -1) {
 
-    poll.choices[choiceIndex].numberOfVotes += 1;
-    poll.voters = [
-      ...poll.voters,
-      {
-        voterId: req.userId,
-        choiceId: choiceId,
-      },
-    ];
+      const oldChoiceIndex = choices.findIndex((choice) => {
+        return choice._id.toString() == voters[voterIndex].choiceId.toString()
+      });
 
-    await poll.save();
+      console.log('old choice index : ', oldChoiceIndex)
+
+      choices[oldChoiceIndex].numberOfVotes -= 1
+
+      voters[voterIndex].choiceId = choiceId
+      
+      const newChoiceIndex =  choices.findIndex((choice) => {
+        return choice._id.toString() == choiceId.toString();
+      });
+
+      choices[newChoiceIndex].numberOfVotes += 1
+
+      poll.choices = [...choices]
+      poll.voters = [...voters]
+
+    }
+    else {
+      const choiceIndex = poll.choices.findIndex((choice) => {
+        return choice._id.toString() == choiceId.toString();
+      });
+
+      poll.choices[choiceIndex].numberOfVotes += 1;
+      poll.voters = [
+        ...poll.voters,
+        {
+          voterId: req.userId,
+          choiceId: choiceId,
+        },
+      ];
+    }
+
+
+    const result = await poll.save();
+
+    const updatedPoll = await Poll.findById(result._id)
+    .populate('voters.voterId', 'name imageUrl myAsk')
+    .exec()
 
     res.status(201).json({
-      poll: poll,
+      choices: updatedPoll.choices,
+      voters : updatedPoll.voters 
     });
   } catch (err) {
     return next(err);
@@ -758,4 +787,11 @@ const unFollowQuestion = (question, followerId) => {
   });
 
   return updatedFollwers;
+};
+
+const checkIfUserAlreadyVotedPoll = (voters, userId) => {
+  const voterIndex = voters.findIndex((voter) => {
+    return voter.voterId == userId;
+  });
+  return voterIndex;
 };

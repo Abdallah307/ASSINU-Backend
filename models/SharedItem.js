@@ -3,7 +3,7 @@ const { Schema } = mongoose
 
 
 const sharedItemSchema = new Schema({
-    name:{
+    title:{
         type:Schema.Types.String,
         required:true,
     },
@@ -15,16 +15,26 @@ const sharedItemSchema = new Schema({
         type:Schema.Types.String,
         required:true,
     },
-    ownerId: {
+    owner: {
         type:Schema.Types.ObjectId,
-        required:true
+        ref : 'User'
+    },
+    price : {
+        type : Schema.Types.Number,
+        default : 0
     },
     departmentId: {
         type:Schema.Types.ObjectId,
+    },
+    reserved : {
+        type : Schema.Types.Boolean,
+        default : false
     }
+
+}, {
+    timestamps : true 
 })
 
-sharedItemSchema.index({name:'text'})
+sharedItemSchema.index({title:'text'})
 
-exports.PublicSharedItem = mongoose.model('PublicSharedItem', sharedItemSchema)
-exports.DepartmentSharedItem = mongoose.model('DepartmentSharedItem', sharedItemSchema)
+module.exports = mongoose.model('SharedItem', sharedItemSchema)
