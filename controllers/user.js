@@ -3,6 +3,7 @@ const Message = require("../models/Message");
 const errorCreator = require("../errorCreator");
 const io = require("../socket");
 const fileHelper = require("../util/file");
+const Notification = require('../models/Notification')
 
 exports.getUserInfo = async (req, res, next) => {
   try {
@@ -217,3 +218,25 @@ exports.switchMyAsk = async (req, res, next) => {
     return next(err);
   }
 };
+
+exports.getNotifications = async (req, res, next) => {
+  try {
+    const notifications = await Notification
+    .find({'To.member' : req.userId})
+    .sort({_id : -1})
+    .populate('payload.item.owner', 'name imageUrl myAsk')
+    .exec()
+
+    if (!notifications) {
+      throw errorCreator('No Notifications found', 404)
+    }
+
+    return res.status(200).json({
+      notifications : notifications
+    })
+  }
+  catch(err) {
+    console.log('notifications error man')
+    return next(err)
+  }
+}

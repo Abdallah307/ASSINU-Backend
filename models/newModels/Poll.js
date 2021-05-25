@@ -9,6 +9,10 @@ const pollSchema = new Schema({
     groupId: {
         type: Schema.Types.ObjectId,
     },
+    groupType : {
+        type : Schema.Types.String,
+        required: true 
+    },
     owner: {
         type: Schema.Types.ObjectId,
         ref:'User'

@@ -30,6 +30,10 @@ const questionSchema = new Schema({
         type: Schema.Types.ObjectId,
         required : true
     },
+    groupType : {
+        type : Schema.Types.String,
+        required: true 
+    },
     type : {
         type: Schema.Types.String,
         default : 'question'

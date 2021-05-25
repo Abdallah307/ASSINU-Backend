@@ -10,22 +10,24 @@ const io = require("../../socket");
 const fileHelper = require("../../util/file");
 const User = require("../../models/User");
 
-const getPosts = async (groupId) => {
-  return Post.find({ groupId: groupId })
+const Notification = require("../../models/Notification");
+
+const getPosts = async (groupId, groupType) => {
+  return Post.find({ groupId: groupId, groupType: groupType })
     .populate("owner", "name imageUrl myAsk")
     .exec();
 };
 
-const getQuestions = async (groupId) => {
-  return Question.find({ groupId: groupId })
+const getQuestions = async (groupId, groupType) => {
+  return Question.find({ groupId: groupId, groupType: groupType })
     .populate("owner", "name imageUrl myAsk")
     .exec();
 };
 
-const getPolls = async (groupId) => {
-  return Poll.find({ groupId: groupId })
+const getPolls = async (groupId, groupType) => {
+  return Poll.find({ groupId: groupId, groupType: groupType })
     .populate("owner", "name imageUrl myAsk")
-    .populate('voters.voterId', 'name imageUrl myAsk')
+    .populate("voters.voterId", "name imageUrl myAsk")
     .exec();
 };
 
@@ -65,9 +67,10 @@ exports.getGroupMembersInfo = async (req, res, next) => {
 exports.getGroupTimeline = async (req, res, next) => {
   try {
     const groupId = req.params.groupId;
-    const posts = await getPosts(groupId);
-    const questions = await getQuestions(groupId);
-    const polls = await getPolls(groupId);
+    const groupType = req.params.groupType;
+    const posts = await getPosts(groupId, groupType);
+    const questions = await getQuestions(groupId, groupType);
+    const polls = await getPolls(groupId, groupType);
 
     if (isNullResult(posts)) posts = [];
     if (isNullResult(questions)) questions = [];
@@ -90,14 +93,17 @@ exports.getGroupTimeline = async (req, res, next) => {
 
 exports.createQuestion = async (req, res, next) => {
   try {
-    const { content, groupId, members, groupName, username } = req.body;
+    const { content, groupType, groupId, members, groupName, username } =
+      req.body;
     const image = req.file;
+    const userId = req.userId 
     let question;
     if (!image) {
       question = new Question({
         content: content,
         owner: req.userId,
         groupId: groupId,
+        groupType: groupType,
       });
     } else {
       question = new Question({
@@ -105,6 +111,7 @@ exports.createQuestion = async (req, res, next) => {
         owner: req.userId,
         groupId: groupId,
         imageUrl: image.path,
+        groupType: groupType,
       });
     }
 
@@ -116,14 +123,43 @@ exports.createQuestion = async (req, res, next) => {
 
     res.status(201).json({
       question: createdQuestion,
+    })
+
+    const memberUsers = JSON.parse(members)
+      .filter((member) => {
+        return member != userId;
+      })
+      .map((member) => {
+        return {
+          member: member,
+        };
+      });
+    console.log("The new members are : ", memberUsers);
+
+    let notification = new Notification({
+      To: memberUsers,
+      NotificationType: "questionCreation",
+      content: `${username} created a question in ${groupName}`,
+      payload: {
+        item: createdQuestion,
+      },
     });
 
+    const resultNotification = await notification.save();
+
+    const createdNotification = await Notification.findById(
+      resultNotification._id
+    )
+      .populate("payload.item.owner", "name imageUrl myAsk")
+      .exec();
+
     io.getIO().emit("createdQuestion", {
-      emiter: req.userId,
+      emiter: userId,
       members: JSON.parse(members),
-      groupName: groupName,
-      username: username,
+      notification: createdNotification,
     });
+
+    
   } catch (err) {
     return next(err);
   }
@@ -388,25 +424,59 @@ exports.addComment = async (req, res, next) => {
       comment: createdComment,
     });
 
+    let notification;
+
     if (type === "answer") {
-      const answer = await Answer.findById(referedTo);
+      const answer = await Answer.findById(referedTo)
+      .populate('owner','name imageUrl myAsk')
+      .exec()
       answer.numberOfComments += 1;
-      answer.save();
+      await answer.save();
+      notification = new Notification({
+        To : [answer.owner],
+        NotificationType : 'commentOnAnswer',
+        content : `${username} created a comment on your answer`,
+        payload : {
+          item : answer 
+        }
+      })
+
+      const result = await notification.save()
+      const createdNotification = await Notification.findById(result._id)
+      .populate("payload.item.owner", "name imageUrl myAsk")
+      .exec();
 
       io.getIO().emit("commentOnMyAnswer", {
         emiter: req.userId,
         answerOwner: answer.owner,
-        username: username,
+        notification : createdNotification
       });
     } else if (type === "post") {
-      const post = await Post.findById(referedTo);
+      const post = await Post.findById(referedTo)
+      .populate("payload.item.owner", "name imageUrl myAsk")
+      .exec();
       post.numberOfComments += 1;
-      post.save();
+      await post.save();
+
+      notification = new Notification({
+        To : [post.owner],
+        NotificationType : 'commentOnPost',
+        content : `${username} created a comment on your post`,
+        payload : {
+          item : post
+        }
+      })
+
+      const result = await notification.save()
+      const createdNotification = await Notification.findById(result._id)
+      .populate("payload.item.owner", "name imageUrl myAsk")
+      .exec();
+
 
       io.getIO().emit("commentOnMyPost", {
         emiter: req.userId,
         postOwner: post.owner,
-        username: username,
+        notification : createdNotification
       });
     }
   } catch (err) {
@@ -453,14 +523,33 @@ exports.addReplay = async (req, res, next) => {
       replay: createdReplay,
     });
 
-    const targetComment = await Comment.findById(referedTo);
+    const targetComment = await Comment.findById(referedTo)
+    .populate("owner", "name imageUrl myAsk")
+    .exec();
+    
     targetComment.numberOfReplays += 1;
     await targetComment.save();
 
+    const notification = new Notification({
+      To: [targetComment.owner._id],
+      NotificationType: "replayCreated",
+      content: `${username} replayed to your comment`,
+      payload: {
+        item: targetComment,
+      },
+    });
+
+    const resultedNotification = await notification.save()
+
+    const createdNotification = await Notification.findById(resultedNotification._id)
+    .populate("payload.item.owner", "name imageUrl myAsk")
+    .exec();
+
+
     io.getIO().emit("replayedToMyComment", {
       emiter: req.userId,
-      commentOwner: targetComment.owner,
-      username: username,
+      commentOwner: targetComment.owner._id,
+      notification : createdNotification
     });
   } catch (err) {
     return next(err);
@@ -469,16 +558,18 @@ exports.addReplay = async (req, res, next) => {
 
 exports.createPost = async (req, res, next) => {
   try {
-    const { content, groupId, members, groupName, username } = req.body;
+    const { content, groupType, groupId, members, groupName, username } =
+      req.body;
     const image = req.file;
     console.log(members);
     let post;
-
+    const userId = req.userId;
     if (!image) {
       post = new Post({
         content: content,
         groupId: groupId,
         owner: req.userId,
+        groupType: groupType,
       });
     } else {
       post = new Post({
@@ -486,6 +577,7 @@ exports.createPost = async (req, res, next) => {
         owner: req.userId,
         imageUrl: image.path,
         groupId: groupId,
+        groupType: groupType,
       });
     }
 
@@ -495,15 +587,45 @@ exports.createPost = async (req, res, next) => {
       .populate("owner", "name imageUrl myAsk")
       .exec();
 
+    res.status(201).json({
+      post: resul,
+    });
+
+    const memberUsers = JSON.parse(members)
+      .filter((member) => {
+        return member != userId;
+      })
+      .map((member) => {
+        return {
+          member: member,
+        };
+      });
+    console.log("The new members are : ", memberUsers);
+
+    let notification = new Notification({
+      To: memberUsers,
+      NotificationType: "postCreation",
+      content: `${username} created a post in ${groupName}`,
+      payload: {
+        item: resul,
+      },
+    });
+
+    const resultNotification = await notification.save();
+
+    const createdNotification = await Notification.findById(
+      resultNotification._id
+    )
+      .populate("payload.item.owner", "name imageUrl myAsk")
+      .exec();
+
     io.getIO().emit("createdpost", {
       emiter: req.userId,
       members: JSON.parse(members),
-      groupName: groupName,
-      username: username,
-    });
-
-    res.status(201).json({
-      post: resul,
+      notification: createdNotification,
+      // groupName: groupName,
+      // username: username,
+      // post: resul,
     });
   } catch (err) {
     return next(err);
@@ -579,7 +701,7 @@ exports.togglePostLikeStatus = async (req, res, next) => {
 
 exports.createPoll = async (req, res, next) => {
   try {
-    let { groupId, choices, content } = req.body;
+    let { groupId, groupType, choices, content } = req.body;
 
     choices = choices.map((choice) => {
       return {
@@ -593,6 +715,7 @@ exports.createPoll = async (req, res, next) => {
       groupId: groupId,
       choices: choices,
       content: content,
+      groupType: groupType,
     });
 
     const resul = await newPoll.save();
@@ -615,35 +738,32 @@ exports.postVotePoll = async (req, res, next) => {
 
     const poll = await Poll.findById(pollId);
 
-    const voters = [...poll.voters]
-    const choices = [...poll.choices]
-    console.log(choices)
+    const voters = [...poll.voters];
+    const choices = [...poll.choices];
+    console.log(choices);
     const voterIndex = checkIfUserAlreadyVotedPoll(voters, req.userId);
-    console.log('index is : ', voterIndex)
-    
-    if (voterIndex > -1) {
+    console.log("index is : ", voterIndex);
 
+    if (voterIndex > -1) {
       const oldChoiceIndex = choices.findIndex((choice) => {
-        return choice._id.toString() == voters[voterIndex].choiceId.toString()
+        return choice._id.toString() == voters[voterIndex].choiceId.toString();
       });
 
-      console.log('old choice index : ', oldChoiceIndex)
+      console.log("old choice index : ", oldChoiceIndex);
 
-      choices[oldChoiceIndex].numberOfVotes -= 1
+      choices[oldChoiceIndex].numberOfVotes -= 1;
 
-      voters[voterIndex].choiceId = choiceId
-      
-      const newChoiceIndex =  choices.findIndex((choice) => {
+      voters[voterIndex].choiceId = choiceId;
+
+      const newChoiceIndex = choices.findIndex((choice) => {
         return choice._id.toString() == choiceId.toString();
       });
 
-      choices[newChoiceIndex].numberOfVotes += 1
+      choices[newChoiceIndex].numberOfVotes += 1;
 
-      poll.choices = [...choices]
-      poll.voters = [...voters]
-
-    }
-    else {
+      poll.choices = [...choices];
+      poll.voters = [...voters];
+    } else {
       const choiceIndex = poll.choices.findIndex((choice) => {
         return choice._id.toString() == choiceId.toString();
       });
@@ -658,16 +778,15 @@ exports.postVotePoll = async (req, res, next) => {
       ];
     }
 
-
     const result = await poll.save();
 
     const updatedPoll = await Poll.findById(result._id)
-    .populate('voters.voterId', 'name imageUrl myAsk')
-    .exec()
+      .populate("voters.voterId", "name imageUrl myAsk")
+      .exec();
 
     res.status(201).json({
       choices: updatedPoll.choices,
-      voters : updatedPoll.voters 
+      voters: updatedPoll.voters,
     });
   } catch (err) {
     return next(err);
@@ -795,3 +914,7 @@ const checkIfUserAlreadyVotedPoll = (voters, userId) => {
   });
   return voterIndex;
 };
+
+const createNotification = () => {
+
+}

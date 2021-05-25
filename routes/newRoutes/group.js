@@ -3,7 +3,7 @@ const router = express.Router()
 const isAuth = require('../../middleware/is-auth')
 const groupController = require('../../controllers/newControllers/groupController')
 
-router.get('/timeline/:groupId',isAuth, groupController.getGroupTimeline)
+router.get('/timeline/:groupId/:groupType',isAuth, groupController.getGroupTimeline)
 
 // questions
  

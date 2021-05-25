@@ -17,5 +17,7 @@ router.post('/changeimage', isAuth , userController.changeProfileImage)
 router.put('/notfications/switch', isAuth , userController.switchNotifications)
 router.put('/myask/switch', isAuth, userController.switchMyAsk)
 
+router.get('/notifications',isAuth, userController.getNotifications)
+
 
 module.exports = router

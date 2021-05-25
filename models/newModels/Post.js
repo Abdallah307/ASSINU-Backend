@@ -13,6 +13,10 @@ const postSchema = new Schema({
         type: Schema.Types.ObjectId,
         required : true
     },
+    groupType : {
+        type : Schema.Types.String,
+        required: true 
+    },
     owner : {
         type : Schema.Types.ObjectId,
         ref : "User"
