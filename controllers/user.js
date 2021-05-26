@@ -47,8 +47,8 @@ exports.createPersonalMessage = async (req, res, next) => {
     const resul = await newMessage.save();
 
     const msg = await Message.findOne({ _id: resul._id })
-      .populate("sender", "imageUrl name myAsk")
-      .populate("receiver", "imageUrl name myAsk")
+      .populate("sender", "imageUrl name myAsk email")
+      .populate("receiver", "imageUrl name myAsk email")
       .exec();
 
     io.getIO().emit("messageP", {
@@ -58,7 +58,7 @@ exports.createPersonalMessage = async (req, res, next) => {
 
     io.getIO().emit("newChat", {
       chat: {
-        user: await User.findById(req.userId).select("name imageUrl myAsk"),
+        user: await User.findById(req.userId).select("name imageUrl myAsk email"),
         lastMessage: msg,
       },
     });
@@ -81,11 +81,11 @@ exports.getAllChats = async (req, res, next) => {
     // });
 
     const chats = await Message.find({ sender: req.userId })
-      .populate("receiver", "name imageUrl myAsk")
+      .populate("receiver", "name imageUrl myAsk email")
       .exec();
 
     const chats2 = await Message.find({ receiver: req.userId })
-      .populate("sender", "name imageUrl myAsk")
+      .populate("sender", "name imageUrl myAsk email")
       .exec();
 
     chats.forEach((chat) => {
@@ -109,7 +109,7 @@ exports.getAllChats = async (req, res, next) => {
         .sort({ _id: -1 })
         .exec();
       chatUsers.push({
-        user: await User.findOne({ _id: item }).select("name imageUrl myAsk"),
+        user: await User.findOne({ _id: item }).select("name imageUrl myAsk email"),
         lastMessage: lastMessage,
       });
       //}
@@ -140,8 +140,8 @@ exports.getPersonalMessages = async (req, res, next) => {
       ],
     })
       .sort({ _id: 1 })
-      .populate("receiver", "name imageUrl myAsk")
-      .populate("sender", "name imageUrl myAsk")
+      .populate("receiver", "name imageUrl myAsk email")
+      .populate("sender", "name imageUrl myAsk email")
       .exec();
 
     if (!mss) {
@@ -228,7 +228,7 @@ exports.getNotifications = async (req, res, next) => {
   try {
     const notifications = await Notification.find({ "To.member": req.userId })
       .sort({ _id: -1 })
-      .populate("payload.item.owner", "name imageUrl myAsk")
+      .populate("payload.item.owner", "name imageUrl myAsk email")
       .exec();
 
     if (!notifications) {
@@ -249,7 +249,7 @@ exports.searchForUser = async (req, res, next) => {
     const username = req.query.username;
     const searchResults = await User.find({
       $text: { $search: username },
-    }).select("name imageUrl myAsk");
+    }).select("name imageUrl myAsk email");
 
     if (!searchResults) {
       throw errorCreator("No Users Found", 404);
@@ -290,19 +290,19 @@ exports.getFeed = async (req, res, next) => {
     const posts = await Post.find(filter)
       .limit(5)
       .sort({ _id: -1 })
-      .populate("owner", "name imageUrl myAsk")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     const polls = await Poll.find(filter)
       .limit(5)
       .sort({ _id: -1 })
-      .populate("owner", "name imageUrl myAsk")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     const questions = await Question.find(filter)
       .limit(5)
       .sort({ _id: -1 })
-      .populate("owner", "name imageUrl myAsk")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     let timeline = posts

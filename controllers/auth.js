@@ -3,6 +3,14 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const errorCreator = require("../errorCreator");
 const axios = require("axios");
+const nodemailer = require('nodemailer')
+const sendGridTransport = require('nodemailer-sendgrid-transport')
+
+const trasporter = nodemailer.createTransport(sendGridTransport({
+  auth : {
+    api_key : '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'
+  }
+}))
 
 exports.signUp = async (req, res, next) => {
   try {
@@ -49,6 +57,20 @@ exports.signUp = async (req, res, next) => {
     });
 
     await user.save();
+
+    trasporter.sendMail({
+      to : email,
+      from : 'a.dereia@stu.najah.edu',
+      subject : 'Signup Succeded',
+      sender : 'a.dereia@stu.najah.edu',
+      html : '<h1>Abdallah trying email address</h1>'
+    })
+    .catch((err) => {
+      console.log(err)
+    }).then(res => {
+      console.log('sent successfully')
+    })
+
     return res.status(201).json({
       message: "Signed up successfully",
     });
@@ -102,6 +124,17 @@ exports.signIn = async (req, res, next) => {
     user.token = token;
 
     await user.save();
+
+    // trasporter.sendMail({
+    //   to : email,
+    //   from : 'a.dereia@stu.najah.edu',
+    //   subject : 'Signup Succeded',
+    //   sender : 'a.dereia@stu.najah.edu',
+    //   html : '<h1>Abdallah trying email address</h1>'
+    // })
+    // .catch((err) => {
+    //   console.log(err)
+    // })
 
     if (user.userType === "teacher") {
       const response = await axios.get(

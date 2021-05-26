@@ -95,6 +95,7 @@ exports.createQuestion = async (req, res, next) => {
   try {
     const { content, groupType, groupId, members, groupName, username } =
       req.body;
+
     const image = req.file;
     const userId = req.userId 
     let question;
@@ -104,6 +105,7 @@ exports.createQuestion = async (req, res, next) => {
         owner: req.userId,
         groupId: groupId,
         groupType: groupType,
+        groupName : groupName 
       });
     } else {
       question = new Question({
@@ -112,6 +114,7 @@ exports.createQuestion = async (req, res, next) => {
         groupId: groupId,
         imageUrl: image.path,
         groupType: groupType,
+        groupName : groupName
       });
     }
 
@@ -161,6 +164,7 @@ exports.createQuestion = async (req, res, next) => {
 
     
   } catch (err) {
+    console.log(err.message)
     return next(err);
   }
 };
@@ -570,6 +574,7 @@ exports.createPost = async (req, res, next) => {
         groupId: groupId,
         owner: req.userId,
         groupType: groupType,
+        groupName : groupName
       });
     } else {
       post = new Post({
@@ -578,6 +583,7 @@ exports.createPost = async (req, res, next) => {
         imageUrl: image.path,
         groupId: groupId,
         groupType: groupType,
+        groupName : groupName
       });
     }
 
@@ -722,7 +728,7 @@ exports.togglePostLikeStatus = async (req, res, next) => {
 
 exports.createPoll = async (req, res, next) => {
   try {
-    let { groupId, groupType, choices, content } = req.body;
+    let { groupId, groupType,groupName, choices, content } = req.body;
 
     choices = choices.map((choice) => {
       return {
@@ -737,6 +743,7 @@ exports.createPoll = async (req, res, next) => {
       choices: choices,
       content: content,
       groupType: groupType,
+      groupName : groupName
     });
 
     const resul = await newPoll.save();
