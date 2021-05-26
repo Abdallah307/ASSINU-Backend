@@ -19,5 +19,10 @@ router.put('/myask/switch', isAuth, userController.switchMyAsk)
 
 router.get('/notifications',isAuth, userController.getNotifications)
 
+router.get('/search', isAuth, userController.searchForUser)
+
+router.post('/feed', isAuth, userController.getFeed)
+
+
 
 module.exports = router

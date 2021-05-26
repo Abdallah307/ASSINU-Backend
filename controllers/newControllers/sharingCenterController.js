@@ -11,7 +11,7 @@ exports.getDepartmentSharedItems = async (req, res, next) => {
       departmentId: { $exists: false },
       departmentId: departmentId,
     })
-      .populate("owner", "name imageUrl")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     if (!items) {
@@ -29,7 +29,7 @@ exports.getDepartmentSharedItems = async (req, res, next) => {
 exports.getPublicSharedItems = async (req, res, next) => {
   try {
     const items = await SharedItem.find({ departmentId: { $exists: false } })
-      .populate("owner", "name imageUrl")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     if (!items) {
@@ -47,7 +47,7 @@ exports.getPublicSharedItems = async (req, res, next) => {
 exports.getUserSharedItems = async (req, res, next) => {
   try {
     const items = await SharedItem.find({ owner: req.userId })
-      .populate("owner", "name imageUrl")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     if (!items) {
@@ -71,7 +71,7 @@ exports.searchDepartmentSharedItems = async (req, res, next) => {
       departmentId: { $exists: true },
       departmentId: departmentId,
     })
-      .populate("owner", "name imageUrl")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     if (!items) {
@@ -93,7 +93,7 @@ exports.searchPublicSharedItems = async (req, res, next) => {
       departmentId: { $exists: false },
       $text: { $search: itemName },
     })
-      .populate("owner", "name imageUrl")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     if (!items) {
@@ -112,8 +112,8 @@ exports.getMyItemsRequests = async (req, res, next) => {
   try {
     const requests = await SharingCenterRequest.find({ sender: req.userId })
       .sort({_id : -1})
-      .populate("sender", "name imageUrl")
-      .populate("receiver", "name imageUrl")
+      .populate("sender", "name imageUrl myAsk email")
+      .populate("receiver", "name imageUrl myAsk email")
       .populate("sharedItem")
       .exec();
 
@@ -133,8 +133,8 @@ exports.getOthersItemsRequests = async (req, res, next) => {
   try {
     const requests = await SharingCenterRequest.find({ receiver: req.userId })
       .sort({_id : -1})
-      .populate("sender", "name imageUrl")
-      .populate("receiver", "name imageUrl")
+      .populate("sender", "name imageUrl myAsk email")
+      .populate("receiver", "name imageUrl myAsk email")
       .populate("sharedItem")
       .exec();
 
@@ -164,8 +164,8 @@ exports.requestItemFromOwner = async (req, res, next) => {
     const result = await request.save();
 
     const createdRequest = await SharingCenterRequest.findById(result._id)
-      .populate("sender", "name imageUrl")
-      .populate("receiver", "name imageUrl")
+      .populate("sender", "name imageUrl myAsk email")
+      .populate("receiver", "name imageUrl myAsk email")
       .populate("sharedItem")
       .populate("request")
       .exec()
@@ -194,7 +194,7 @@ exports.replayToItemRequest = async (req, res, next) => {
     const result = await replay.save();
 
     const createdReplay = await RequestReplay.findById(result._id)
-      .populate("sender", "name imageUrl myAsk")
+      .populate("sender", "name imageUrl myAsk email")
       .exec();
 
     io.getIO().emit('commingReplay' , {
@@ -277,7 +277,7 @@ exports.shareItem = async (req, res, next) => {
     const result = await item.save();
 
     const createdItem = await SharedItem.findById(result._id)
-      .populate("owner", "name imageUrl myAsk")
+      .populate("owner", "name imageUrl myAsk email ")
       .exec();
 
     return res.status(201).json({
@@ -292,7 +292,7 @@ exports.getRequestReplays = async (req, res, next) => {
   try {
     const {requestId} = req.params
     const replays = await RequestReplay.find({request : requestId})
-    .populate('sender', 'name imageUrl')
+    .populate('sender', 'name imageUrl myAsk email')
     .populate('request')
     .exec()
     

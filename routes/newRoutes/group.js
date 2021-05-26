@@ -34,6 +34,7 @@ router.post('/members', isAuth, groupController.getGroupMembersInfo)
 router.post('/createpost',isAuth, groupController.createPost)
 router.put('/posts/likepost',isAuth, groupController.togglePostLikeStatus)
 router.delete('/posts/delete/:postId', groupController.deleteGroupPost)
+router.delete('/polls/delete/:pollId', groupController.deleteGroupPoll)
 
 //polls
 

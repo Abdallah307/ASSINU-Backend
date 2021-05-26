@@ -14,20 +14,20 @@ const Notification = require("../../models/Notification");
 
 const getPosts = async (groupId, groupType) => {
   return Post.find({ groupId: groupId, groupType: groupType })
-    .populate("owner", "name imageUrl myAsk")
+    .populate("owner", "name imageUrl myAsk email")
     .exec();
 };
 
 const getQuestions = async (groupId, groupType) => {
   return Question.find({ groupId: groupId, groupType: groupType })
-    .populate("owner", "name imageUrl myAsk")
+    .populate("owner", "name imageUrl myAsk email")
     .exec();
 };
 
 const getPolls = async (groupId, groupType) => {
   return Poll.find({ groupId: groupId, groupType: groupType })
-    .populate("owner", "name imageUrl myAsk")
-    .populate("voters.voterId", "name imageUrl myAsk")
+    .populate("owner", "name imageUrl myAsk email")
+    .populate("voters.voterId", "name imageUrl myAsk email")
     .exec();
 };
 
@@ -41,7 +41,7 @@ exports.getGroupMembersInfo = async (req, res, next) => {
     const membersEmails = req.body.emails;
 
     let members = [];
-    const fetchingFilter = "name imageUrl myAsk";
+    const fetchingFilter = "name imageUrl myAsk email";
     for (let i = 0; i < membersEmails.length; i++) {
       const member = await User.find(
         { email: membersEmails[i] },
@@ -118,7 +118,7 @@ exports.createQuestion = async (req, res, next) => {
     const result = await question.save();
 
     const createdQuestion = await Question.findById(result._id)
-      .populate("owner", "name imageUrl myAsk")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     res.status(201).json({
@@ -150,7 +150,7 @@ exports.createQuestion = async (req, res, next) => {
     const createdNotification = await Notification.findById(
       resultNotification._id
     )
-      .populate("payload.item.owner", "name imageUrl myAsk")
+      .populate("payload.item.owner", "name imageUrl myAsk email")
       .exec();
 
     io.getIO().emit("createdQuestion", {
@@ -178,7 +178,7 @@ exports.addAnswer = async (req, res, next) => {
     const result = await answer.save();
 
     const createdAnswer = await Answer.findById(result._id)
-      .populate("owner", "name imageUrl myAsk")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     res.status(201).json({
@@ -204,7 +204,7 @@ exports.getQuestionAnswers = async (req, res, next) => {
   try {
     const { questionId } = req.params;
     const answers = await Answer.find({ question: questionId })
-      .populate("owner", "name imageUrl myAsk")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     if (isNullResult(answers)) {
@@ -390,7 +390,7 @@ exports.getComments = async (req, res, next) => {
     const { referedTo } = req.params;
     const comments = await Comment.find({ referedTo: referedTo })
       .sort({ _id: -1 })
-      .populate("owner", "name imageUrl myAsk")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     if (isNullResult(comments)) {
@@ -417,7 +417,7 @@ exports.addComment = async (req, res, next) => {
     const result = await comment.save();
 
     const createdComment = await Comment.findById(result._id)
-      .populate("owner", "name imageUrl myAsk")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     res.status(201).json({
@@ -428,7 +428,7 @@ exports.addComment = async (req, res, next) => {
 
     if (type === "answer") {
       const answer = await Answer.findById(referedTo)
-      .populate('owner','name imageUrl myAsk')
+      .populate('owner','name imageUrl myAsk email')
       .exec()
       answer.numberOfComments += 1;
       await answer.save();
@@ -443,7 +443,7 @@ exports.addComment = async (req, res, next) => {
 
       const result = await notification.save()
       const createdNotification = await Notification.findById(result._id)
-      .populate("payload.item.owner", "name imageUrl myAsk")
+      .populate("payload.item.owner", "name imageUrl myAsk email")
       .exec();
 
       io.getIO().emit("commentOnMyAnswer", {
@@ -453,7 +453,7 @@ exports.addComment = async (req, res, next) => {
       });
     } else if (type === "post") {
       const post = await Post.findById(referedTo)
-      .populate("payload.item.owner", "name imageUrl myAsk")
+      .populate("payload.item.owner", "name imageUrl myAsk email")
       .exec();
       post.numberOfComments += 1;
       await post.save();
@@ -469,7 +469,7 @@ exports.addComment = async (req, res, next) => {
 
       const result = await notification.save()
       const createdNotification = await Notification.findById(result._id)
-      .populate("payload.item.owner", "name imageUrl myAsk")
+      .populate("payload.item.owner", "name imageUrl myAsk email")
       .exec();
 
 
@@ -489,7 +489,7 @@ exports.getReplays = async (req, res, next) => {
     const { referedTo } = req.params;
     const replays = await Replay.find({ referedTo: referedTo })
       .sort({ _id: -1 })
-      .populate("owner", "name imageUrl myAsk")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     if (isNullResult(replays)) {
@@ -516,7 +516,7 @@ exports.addReplay = async (req, res, next) => {
     const result = await replay.save();
 
     const createdReplay = await Replay.findById(result._id)
-      .populate("owner", "name imageUrl myAsk")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     res.status(201).json({
@@ -524,7 +524,7 @@ exports.addReplay = async (req, res, next) => {
     });
 
     const targetComment = await Comment.findById(referedTo)
-    .populate("owner", "name imageUrl myAsk")
+    .populate("owner", "name imageUrl myAsk email")
     .exec();
     
     targetComment.numberOfReplays += 1;
@@ -542,7 +542,7 @@ exports.addReplay = async (req, res, next) => {
     const resultedNotification = await notification.save()
 
     const createdNotification = await Notification.findById(resultedNotification._id)
-    .populate("payload.item.owner", "name imageUrl myAsk")
+    .populate("payload.item.owner", "name imageUrl myAsk email")
     .exec();
 
 
@@ -584,7 +584,7 @@ exports.createPost = async (req, res, next) => {
     const result = await post.save();
 
     const resul = await Post.findById(result._id)
-      .populate("owner", "name imageUrl myAsk")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     res.status(201).json({
@@ -616,7 +616,7 @@ exports.createPost = async (req, res, next) => {
     const createdNotification = await Notification.findById(
       resultNotification._id
     )
-      .populate("payload.item.owner", "name imageUrl myAsk")
+      .populate("payload.item.owner", "name imageUrl myAsk email")
       .exec();
 
     io.getIO().emit("createdpost", {
@@ -660,6 +660,27 @@ exports.deleteGroupPost = async (req, res, next) => {
     return next(err);
   }
 };
+
+exports.deleteGroupPoll = async (req, res, next) => {
+  try {
+    const { pollId } = req.params;
+    const poll = await Poll.findOne({ _id: pollId });
+
+    //post.imageUrl ? fileHelper.deleteFile(post.imageUrl) : null;
+
+    await Poll.deleteOne({ _id: poll._id });
+
+    res.status(201).json({
+      message: "removed poll",
+    });
+
+    
+  } catch (err) {
+    return next(err);
+  }
+}
+
+
 
 exports.togglePostLikeStatus = async (req, res, next) => {
   try {
@@ -721,7 +742,7 @@ exports.createPoll = async (req, res, next) => {
     const resul = await newPoll.save();
 
     const result = await Poll.findById(resul._id)
-      .populate("owner", "name imageUrl myAsk")
+      .populate("owner", "name imageUrl myAsk email")
       .exec();
 
     return res.status(201).json({
@@ -781,7 +802,7 @@ exports.postVotePoll = async (req, res, next) => {
     const result = await poll.save();
 
     const updatedPoll = await Poll.findById(result._id)
-      .populate("voters.voterId", "name imageUrl myAsk")
+      .populate("voters.voterId", "name imageUrl myAsk email")
       .exec();
 
     res.status(201).json({
@@ -799,7 +820,7 @@ exports.getGroupMessages = async (req, res, next) => {
 
     const messages = await GroupMessage.find({ groupId: groupId })
       .sort({ _id: 1 })
-      .populate("ownerId", "name imageUrl myAsk")
+      .populate("ownerId", "name imageUrl myAsk email")
       .exec();
 
     if (!messages) {
@@ -832,7 +853,7 @@ exports.createMessage = async (req, res, next) => {
     const resul = await newMessage.save();
 
     const message = await GroupMessage.findById(resul._id)
-      .populate("ownerId", "name imageUrl myAsk")
+      .populate("ownerId", "name imageUrl myAsk email")
       .exec();
 
     io.getIO().emit("message", {
@@ -915,6 +936,4 @@ const checkIfUserAlreadyVotedPoll = (voters, userId) => {
   return voterIndex;
 };
 
-const createNotification = () => {
 
-}

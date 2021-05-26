@@ -3,7 +3,11 @@ const Message = require("../models/Message");
 const errorCreator = require("../errorCreator");
 const io = require("../socket");
 const fileHelper = require("../util/file");
-const Notification = require('../models/Notification')
+const Notification = require("../models/Notification");
+const Post = require("../models/newModels/Post");
+const Poll = require("../models/newModels/Poll");
+const Question = require("../models/newModels/Question");
+const { default: axios } = require("axios");
 
 exports.getUserInfo = async (req, res, next) => {
   try {
@@ -33,7 +37,7 @@ exports.getUserInfo = async (req, res, next) => {
 
 exports.createPersonalMessage = async (req, res, next) => {
   try {
-    const {receiver, content } = req.body;
+    const { receiver, content } = req.body;
     const newMessage = new Message({
       content: content,
       sender: req.userId,
@@ -166,10 +170,11 @@ exports.changeProfileImage = async (req, res, next) => {
     if (!user) {
       throw errorCreator("User Not Found", 500);
     }
-
-    fileHelper.deleteFile(user.imageUrl, (error) => {
-      return next(errorCreator("Error Uploading Image", 500));
-    });
+    if (user.imageUrl !== "images/no-image.png") {
+      fileHelper.deleteFile(user.imageUrl, (error) => {
+        return next(errorCreator("Error Uploading Image", 500));
+      });
+    }
 
     user.imageUrl = image.path;
     await user.save();
@@ -221,22 +226,100 @@ exports.switchMyAsk = async (req, res, next) => {
 
 exports.getNotifications = async (req, res, next) => {
   try {
-    const notifications = await Notification
-    .find({'To.member' : req.userId})
-    .sort({_id : -1})
-    .populate('payload.item.owner', 'name imageUrl myAsk')
-    .exec()
+    const notifications = await Notification.find({ "To.member": req.userId })
+      .sort({ _id: -1 })
+      .populate("payload.item.owner", "name imageUrl myAsk")
+      .exec();
 
     if (!notifications) {
-      throw errorCreator('No Notifications found', 404)
+      throw errorCreator("No Notifications found", 404);
     }
 
     return res.status(200).json({
-      notifications : notifications
-    })
+      notifications: notifications,
+    });
+  } catch (err) {
+    console.log("notifications error man");
+    return next(err);
   }
-  catch(err) {
-    console.log('notifications error man')
-    return next(err)
+};
+
+exports.searchForUser = async (req, res, next) => {
+  try {
+    const username = req.query.username;
+    const searchResults = await User.find({
+      $text: { $search: username },
+    }).select("name imageUrl myAsk");
+
+    if (!searchResults) {
+      throw errorCreator("No Users Found", 404);
+    }
+
+    return res.status(200).json({
+      searchResults: searchResults,
+    });
+  } catch (err) {
+    return next(err);
   }
-}
+};
+
+exports.getFeed = async (req, res, next) => {
+  try {
+    const { courses, departmentId, publicGroupId, userType } = req.body;
+    const coursesIds = JSON.parse(courses).map((course) => {
+      return course._id;
+    });
+
+    let filter;
+
+    if (userType === "teacher") {
+      filter = {
+        $or: [
+          { groupId: departmentId, groupType: "admin" },
+          { groupId: { $in: coursesIds } },
+        ],
+      };
+    } else if (userType === "student") {
+      coursesIds.push(publicGroupId);
+      coursesIds.push(departmentId);
+      filter = {
+        groupId: { $in: coursesIds },
+      };
+    }
+
+    const posts = await Post.find(filter)
+      .limit(5)
+      .sort({ _id: -1 })
+      .populate("owner", "name imageUrl myAsk")
+      .exec();
+
+    const polls = await Poll.find(filter)
+      .limit(5)
+      .sort({ _id: -1 })
+      .populate("owner", "name imageUrl myAsk")
+      .exec();
+
+    const questions = await Question.find(filter)
+      .limit(5)
+      .sort({ _id: -1 })
+      .populate("owner", "name imageUrl myAsk")
+      .exec();
+
+    let timeline = posts
+      .concat(polls)
+      .concat(questions)
+      .sort((a, b) => {
+        return b.createdAt - a.createdAt;
+      });
+
+    console.log(posts);
+    return res.status(200).json({
+      timeline: timeline,
+    });
+  } catch (err) {
+    console.log(err.message);
+    return next(err);
+  }
+};
+
+
