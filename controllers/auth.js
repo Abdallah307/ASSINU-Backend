@@ -296,6 +296,116 @@ exports.signOut = async (req, res, next) => {
   }
 };
 
+exports.sendForgetPasswordCode = async (req, res, next) => {
+  try {
+    const {email} = req.body 
+
+    const user = await User.findOne({email : email})
+
+    if (!user) {
+      throw errorCreator('User not found', 404)
+    }
+
+    const verificationCode = generateVerificationCode()
+
+    user.resetCode = verificationCode
+
+    await user.save()
+
+    res.status(200).json({
+      message : 'check your email'
+    })
+
+    await trasporter.sendMail({
+      to : email,
+      from : 'a.dereia@stu.najah.edu',
+      subject : 'Forgotten your ASSINU password? No worries -- it happens!',
+      sender : 'a.dereia@stu.najah.edu',
+      html : '<h1>Your reset code is '+verificationCode+'</h1>'
+    })
+
+    
+
+  }
+  catch(err) {
+    return next (err)
+  }
+}
+
+exports.checkForgetPasswordCode = async (req, res, next) => {
+  try {
+    const {code, email} = req.body
+    
+    const user = await User.findOne({email : email})
+
+    if (!user) {
+      throw errorCreator('User not found', 404)
+    }
+
+    if (!user.resetCode) {
+      throw errorCreator('Error reseting password', 500)
+    }
+
+    if (user.resetCode.toString() === code.toString()) {
+      const resetToken = createToken(user)
+      user.resetToken = resetToken
+      await user.save()
+      return res.status(200).json({
+        token : resetToken
+      })
+    }
+
+    throw errorCreator('Verification code is not correct', 401)
+
+  }
+  catch(err) {
+    return next (err)
+  }
+}
+
+
+exports.setNewPassword = async (req, res, next) => {
+  try {
+    const {newPassword, confirmNewPassword, email, token} = req.body
+    
+    
+    const user = await User.findOne({email : email})
+
+    if (!user) {
+      throw errorCreator('User not found', 404)
+    }
+
+    if (!newPassword || !confirmNewPassword) {
+      throw errorCreator('Please fill in the required fields')
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      throw errorCreator('Passwords are not identical')
+    }
+
+    if (token.toString() !== user.resetToken.toString()) {
+      throw errorCreator('Not Authenticated', 401)
+    }
+
+
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12)
+
+    user.password = hashedPassword
+    user.resetToken = undefined 
+    user.resetCode = undefined
+    await user.save()
+
+    return res.status(201).json({
+      message : 'Changed Password successfully'
+    })
+
+  }
+  catch(err) {
+    return next (err)
+  }
+}
+
 const createToken = (user) => {
   const token = jwt.sign(
     {

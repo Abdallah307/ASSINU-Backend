@@ -9,6 +9,9 @@ router.post('/signin', authController.signIn)
 router.post('/signout',isAuth, authController.signOut)
 router.post('/signup/verification', authController.checkVerificationCode)
 router.post('/signup/resendcode', authController.resendVerificationCode)
+router.post('/forgetpassword/sendcode', authController.sendForgetPasswordCode)
+router.post('/forgetpassword/verification', authController.checkForgetPasswordCode)
+router.post('/forgetpassword/newpassword', authController.setNewPassword)
 
 
 

@@ -38,6 +38,12 @@ const userSchema = new Schema({
     },
     verificationCode : {
         type : Schema.Types.Number,
+    },
+    resetCode : {
+        type : Schema.Types.Number
+    },
+    resetToken : {
+        type : Schema.Types.String
     }
 })
 
