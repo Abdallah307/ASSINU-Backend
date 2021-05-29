@@ -35,6 +35,9 @@ const userSchema = new Schema({
         type : Schema.Types.Boolean,
         required : true,
         default : true
+    },
+    verificationCode : {
+        type : Schema.Types.Number,
     }
 })
 

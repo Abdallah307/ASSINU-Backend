@@ -15,7 +15,7 @@ exports.getStudentsDepartmentGroupMembers = async (req, res, next) => {
       for (let i = 0; i < response.data.members.length; i++) {
         const newMember = await User.findOne({
           email: response.data.members[i].email,
-        }).select("name imageUrl myAsk");
+        }).select("name imageUrl myAsk email");
         if (newMember) {
           members.push(newMember);
         }
@@ -40,7 +40,7 @@ exports.getAllStudents = async (req, res, next) => {
       for (let i = 0; i < response.data.students.length; i++) {
         const student = await User.findOne({
           email: response.data.students[i].email,
-        }).select("name imageUrl myAsk");
+        }).select("name imageUrl myAsk email");
         if (student) {
           students.push(student);
         }
@@ -69,7 +69,7 @@ exports.getDepartmentAllMembers = async (req, res, next) => {
         const member = await User.findOne({
           email: response.data.members[i].email,
         })
-        .select('name imageUrl myAsk')
+        .select('name imageUrl myAsk email')
 
         if (member) {
             members.push(member)

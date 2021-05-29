@@ -9,6 +9,7 @@ const Poll = require("../models/newModels/Poll");
 const Question = require("../models/newModels/Question");
 const { default: axios } = require("axios");
 
+
 exports.getUserInfo = async (req, res, next) => {
   try {
     // if (!req.userId) {
@@ -265,6 +266,7 @@ exports.searchForUser = async (req, res, next) => {
 
 exports.getFeed = async (req, res, next) => {
   try {
+    const {page} = req.query
     const { courses, departmentId, publicGroupId, userType } = req.body;
     const coursesIds = JSON.parse(courses).map((course) => {
       return course._id;

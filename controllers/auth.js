@@ -3,46 +3,112 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const errorCreator = require("../errorCreator");
 const axios = require("axios");
-const nodemailer = require('nodemailer')
-const sendGridTransport = require('nodemailer-sendgrid-transport')
+const nodemailer = require("nodemailer");
+const sendGridTransport = require("nodemailer-sendgrid-transport");
 
-const trasporter = nodemailer.createTransport(sendGridTransport({
-  auth : {
-    api_key : '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'
+const trasporter = nodemailer.createTransport(
+  sendGridTransport({
+    auth: {
+      api_key:
+        "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",
+    },
+  })
+);
+
+exports.resendVerificationCode = async (req, res, next) => {
+  try {
+    const {email} = req.body 
+    const user = await User.findOne({email : email})
+
+    if (!user) {
+      throw errorCreator('User not found', 404)
+    }
+
+    const newVerificationCode = generateVerificationCode()
+
+    user.verificationCode = newVerificationCode
+    await user.save()
+
+    trasporter.sendMail({
+      to : email,
+      from : 'a.dereia@stu.najah.edu',
+      subject : 'Please verify your email in ASSINU',
+      sender : 'a.dereia@stu.najah.edu',
+      html : '<h1>Your verification code is '+newVerificationCode+'</h1>'
+    })
+    .then(result => {
+      console.log('sent successfully')
+      return res.status(201).json({
+        message : 'generated new verifiaction code'
+      })
+    })
+    .catch((err) => {
+      console.log(err)
+    })
+
+
   }
-}))
+  catch(err) {
+    return next (err)
+  }
+}
+
+exports.checkVerificationCode = async (req, res, next) => {
+  try {
+    const {code, email} = req.body 
+    const user = await User.findOne({email : email})
+    console.log(email)
+    if (!user) {
+      throw errorCreator('User not found', 404)
+    }
+
+    if (user.verificationCode.toString() === code.toString()) {
+
+      user.verificationCode = undefined
+      user.expires_at = undefined
+      await user.save()
+
+      return res.status(200).json({
+        message : "Email Verified Successfully"
+      })
+    }
+
+    throw errorCreator('Verification code is not correct', 422)
+
+  }
+  catch(err){
+    return next (err)
+  }
+}
 
 exports.signUp = async (req, res, next) => {
   try {
     const name = req.body.name;
     const email = req.body.email;
     const password = req.body.password;
-    const confirmPassword = req.body.confirmPassword
+    const confirmPassword = req.body.confirmPassword;
 
     if (!name || !email || !password || !confirmPassword) {
-        throw errorCreator('Please fill the required fields', 422)
+      throw errorCreator("Please fill the required fields", 422);
     }
-
 
     const emailDomainPart = email.split("@")[1];
     if (
       emailDomainPart !== "stu.najah.edu" &&
       emailDomainPart !== "najah.edu"
     ) {
-        throw errorCreator("Please use your university email", 422);
+      throw errorCreator("Please use your university email", 422);
     }
 
-
-
     if (await checkExistingEmail(email)) {
-      throw errorCreator('Email is Already registerd!', 422)
+      throw errorCreator("Email is Already registerd!", 422);
     }
 
     if (password !== confirmPassword) {
-        throw errorCreator('passwords are not identical', 403)
+      throw errorCreator("passwords are not identical", 403);
     }
 
-
+    const verificationCode = generateVerificationCode()
 
     const userType = getUserType(email);
 
@@ -53,7 +119,8 @@ exports.signUp = async (req, res, next) => {
       email,
       password: hashedPassword,
       userType: userType,
-      imageUrl : 'images/no-image.png'
+      imageUrl: "images/no-image.png",
+      verificationCode : verificationCode
     });
 
     await user.save();
@@ -61,19 +128,20 @@ exports.signUp = async (req, res, next) => {
     trasporter.sendMail({
       to : email,
       from : 'a.dereia@stu.najah.edu',
-      subject : 'Signup Succeded',
+      subject : 'Please verify your email in ASSINU',
       sender : 'a.dereia@stu.najah.edu',
-      html : '<h1>Abdallah trying email address</h1>'
+      html : '<h1>Your verification code is '+verificationCode+'</h1>'
+    })
+    .then(result => {
+      console.log('sent successfully')
+      return res.status(201).json({
+        message: "Signed up successfully",
+      });
     })
     .catch((err) => {
       console.log(err)
-    }).then(res => {
-      console.log('sent successfully')
     })
 
-    return res.status(201).json({
-      message: "Signed up successfully",
-    });
   } catch (err) {
     return next(err);
   }
@@ -104,20 +172,27 @@ exports.signIn = async (req, res, next) => {
       emailDomainPart !== "stu.najah.edu" &&
       emailDomainPart !== "najah.edu"
     ) {
-        throw errorCreator("Please use your university email", 422);
+      throw errorCreator("Please use your university email", 422);
     }
+
+
 
     const user = await User.findOne({ email: email });
 
     if (!user) {
       throw errorCreator("This Email is not registered", 422);
     }
+
+    if (user.verificationCode) {
+      throw errorCreator('Please Verifiy your email', 401)
+    }
+
     const userPassword = user.password;
 
     const isPasswordOk = await bcrypt.compare(password, userPassword);
 
     if (!isPasswordOk) {
-      throw errorCreator('password is not correct', 403)
+      throw errorCreator("password is not correct", 403);
     }
 
     const token = createToken(user);
@@ -232,3 +307,7 @@ const createToken = (user) => {
 
   return token;
 };
+
+const generateVerificationCode = () => {
+  return Math.floor(100000 + Math.random() * 900000);
+}

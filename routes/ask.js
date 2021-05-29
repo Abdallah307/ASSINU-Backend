@@ -17,4 +17,5 @@ router.post('/answerquestion',isAuth, askController.answerQuestion)
 
 router.get('/question/answer/:questionId',isAuth, askController.getQuestionAnswer)
 
+
 module.exports = router
